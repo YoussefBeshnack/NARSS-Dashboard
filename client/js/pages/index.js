@@ -1,5 +1,5 @@
-import { authStore } from './js/services/auth.store.js';
-import { ROUTES } from './js/core/constants.js';
+import { authStore } from '../services/auth.store.js';
+import { ROUTES } from '../core/constants.js';
 
 if (authStore.isAuthenticated()) {
   window.location.href = ROUTES.DASHBOARD;

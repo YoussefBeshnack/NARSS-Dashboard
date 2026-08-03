@@ -1,3 +1,5 @@
+import { STORAGE_KEYS } from '../core/constants.js';
+
 // js/services/auth.store.js
 export class AuthStore {
   constructor() {
@@ -6,7 +8,7 @@ export class AuthStore {
     this.USER_KEY = STORAGE_KEYS.USER_DATA;
   }
 
-  setSession({ token, user }) {
+  setSession({ token, refreshToken, user }) {
     if (token) localStorage.setItem(this.TOKEN_KEY, token);
     if (refreshToken) localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
     if (user) localStorage.setItem(this.USER_KEY, JSON.stringify(user));

@@ -1,4 +1,4 @@
-import { SELECTORS, DATA_ATTRS } from '../core/constants.js';
+import { SELECTORS, DATA_ATTRS } from "../core/constants.js";
 
 export class BaseFormHandler {
   /**
@@ -7,7 +7,7 @@ export class BaseFormHandler {
    * @param {Function} config.onSubmit - Async callback triggered on valid submission
    */
   constructor({ form, onSubmit }) {
-    this.form = typeof form === 'string' ? document.querySelector(form) : form;
+    this.form = typeof form === "string" ? document.querySelector(form) : form;
     if (!this.form) {
       throw new Error(`${this.constructor.name}: Form element not found.`);
     }
@@ -20,8 +20,10 @@ export class BaseFormHandler {
    * Base initialization: disables native validation and sets up submit event
    */
   initBase() {
-    this.form.setAttribute('novalidate', 'true');
-    this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+    this.form.setAttribute("novalidate", "true");
+    this.form.addEventListener("submit", (e) => this.handleSubmit(e));
+
+    this.initPasswordToggles();
   }
 
   /**
@@ -32,7 +34,7 @@ export class BaseFormHandler {
     const formData = new FormData(this.form);
     const values = {};
     for (const [key, value] of formData.entries()) {
-      values[key] = typeof value === 'string' ? value.trim() : value;
+      values[key] = typeof value === "string" ? value.trim() : value;
     }
     return values;
   }
@@ -48,12 +50,12 @@ export class BaseFormHandler {
 
     let errorEl = this.form.querySelector(`[${DATA_ATTRS.ERROR_FOR}="${fieldName}"]`);
     if (!errorEl) {
-      errorEl = document.createElement('span');
+      errorEl = document.createElement("span");
       errorEl.className = SELECTORS.ERROR_ELEMENT_CLASS;
       errorEl.setAttribute(DATA_ATTRS.ERROR_FOR, fieldName);
-      
+
       // Inject after input element
-      input.parentNode.appendChild(errorEl);
+      input.parentNode.parentNode.appendChild(errorEl);
     }
 
     errorEl.textContent = message;
@@ -67,7 +69,7 @@ export class BaseFormHandler {
     if (input) input.classList.remove(SELECTORS.INVALID_INPUT_CLASS);
 
     const errorEl = this.form.querySelector(`[${DATA_ATTRS.ERROR_FOR}="${fieldName}"]`);
-    if (errorEl) errorEl.textContent = '';
+    if (errorEl) errorEl.textContent = "";
   }
 
   /**
@@ -79,14 +81,44 @@ export class BaseFormHandler {
 
     const errors = this.form.querySelectorAll(`[${DATA_ATTRS.ERROR_FOR}]`);
     errors.forEach((el) => {
-      el.textContent = '';
+      el.textContent = "";
     });
+  }
+
+  /**
+   * Initializes all password visibility toggles in the form
+   */
+  initPasswordToggles() {
+    const toggles = this.form.querySelectorAll(".input span.right");
+
+    toggles.forEach((toggle) => {
+      toggle.addEventListener("click", () => {
+        this.togglePassword(toggle);
+      });
+    });
+  }
+
+  /**
+   * Toggles password visibility for the associated input
+   */
+  togglePassword(toggleBtn) {
+    const input = toggleBtn.parentNode.querySelector("input");
+    if (!input) return;
+
+    const isHidden = input.type === "password";
+
+    input.type = isHidden ? "text" : "password";
+
+    toggleBtn.classList.toggle("fa-eye", !isHidden);
+    toggleBtn.classList.toggle("fa-eye-slash", isHidden);
+
+    toggleBtn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
   }
 
   /**
    * Toggles button pending state during async submission
    */
-  setLoadingState(isLoading, loadingText = 'Processing...') {
+  setLoadingState(isLoading, loadingText = "Processing...") {
     const submitBtn = this.form.querySelector(SELECTORS.SUBMIT_BUTTON);
     if (!submitBtn) return;
 
