@@ -1,8 +1,20 @@
 {
   "name": "narss-dashboard",
-  "version": "0.1.0",
-  "scripts": {
+  "version": "1.0.0",
+  "description": "dashboard",
+  "homepage": "https://github.com/YoussefBeshnack/NARSS-Dashboard/tree/main#readme",
+  "bugs": {
+    "url": "https://github.com/YoussefBeshnack/NARSS-Dashboard/issues"
   },
-  "dependencies": {
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YoussefBeshnack/NARSS-Dashboard.git#main"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'No build step required for vanilla JS'"
   }
 }
