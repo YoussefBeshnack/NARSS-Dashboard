@@ -24,3 +24,18 @@ export const requireGuest = () => {
   window.location.href = ROUTES.DASHBOARD;
   return false;
 };
+
+/**
+ * Ensures the user didnt open via url copy like
+ * Use on guest pages like Forgot Password.
+ */
+export const enforceInternalNavigation = () => {
+  const isDirectEntry = window.history.length <= 1;
+  const isExternalReferrer = !document.referrer.startsWith(window.location.origin);
+
+  // If opened directly or coming from outside your site
+  if (!(isDirectEntry || isExternalReferrer)) return true;
+
+  window.location.href = ROUTES.LOGIN;
+  return false;
+};

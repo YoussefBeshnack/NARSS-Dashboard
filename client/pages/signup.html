@@ -5,10 +5,146 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="../assets/favicon.png" />
     <link rel="stylesheet" href="../css/bootstrap.min.css" />
+    <link rel="stylesheet" href="../css/all.min.css" />
+    <link rel="stylesheet" href="../css/main.css" />
     <title>Narss Signup</title>
   </head>
   <body>
-    <main class="w-100 bg-dark" style="height: 100vh"></main>
+    <main class="w-100 bg-dark" style="height: 100vh">
+      <section class="h-100 d-flex justify-content-center align-items-center p-5">
+        <form
+          action="#"
+          id="signup-form"
+          class="w-100 h-100 bg-white bg-opacity-90 rounded-2 d-flex flex-column align-content-center justify-content-between overflow-y-auto py-3 hide-scrollbar"
+          style="max-width: 638px; max-height: 741px">
+          <div class="p-4">
+            <!-- Image/Logo -->
+            <div class="m-auto" style="width: 96px; height: 96px">
+              <img src="../assets/favicon.png" alt="NARSS" class="w-100 h-100" />
+            </div>
+
+            <!-- Header -->
+            <div class="text-center my-3">
+              <p class="fs-3 fw-bold p-0 m-0">Create Your Account</p>
+              <p class="text-black text-opacity-75 p-0 m-0">Join the Scientific Expedition for the future!</p>
+            </div>
+
+            <!-- Name -->
+            <div class="mb-3">
+              <label for="fullName" class="fw-medium">Full Name</label>
+              <div class="input">
+                <input
+                  type="text"
+                  id="fullName"
+                  name="fullName"
+                  autocomplete="name"
+                  required
+                  placeholder="John Doe"
+                  class="form-control" />
+
+                <span class="left">
+                  <i class="fa-solid fa-user"></i>
+                </span>
+              </div>
+            </div>
+
+            <!-- Email -->
+            <div class="mb-3">
+              <label for="email" class="fw-medium">Email</label>
+              <div class="input">
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  autocomplete="email"
+                  required
+                  placeholder="name@company.com"
+                  class="form-control" />
+
+                <span class="left">
+                  <i class="fa-solid fa-envelope"></i>
+                </span>
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div class="overflow-hidden">
+              <div class="row flex-nowrap">
+                <!-- Password -->
+                <div class="mb-3 col-6">
+                  <label for="password" class="fw-medium">Password</label>
+                  <div class="input">
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      autocomplete="new-password"
+                      required
+                      placeholder="Enter your password"
+                      class="form-control" />
+
+                    <span class="left">
+                      <i class="fa-solid fa-key"></i>
+                    </span>
+                    <span class="right">
+                      <i class="fa-regular fa-eye"></i>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Confirm Password -->
+                <div class="mb-3 col-6">
+                  <label for="confirmPassword" class="fw-medium">Confirm Password</label>
+                  <div class="input">
+                    <input
+                      type="password"
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      autocomplete="new-password"
+                      required
+                      placeholder="Confirm Password"
+                      class="form-control" />
+
+                    <span class="left">
+                      <i class="fa-solid fa-key"></i>
+                    </span>
+                    <span class="right">
+                      <i class="fa-regular fa-eye"></i>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Terms & Conditions -->
+            <div>
+              <input
+                type="checkbox"
+                name="terms-and-conditions"
+                id="terms-and-conditions"
+                class="form-check-inline me-1" />
+              <label for="terms-and-conditions" class="no-select"
+                >I agree to the
+                <a href="#" class="text-secondary text-decoration-none fw-medium">Terms & Conditions</a> and
+                <a href="#" class="text-secondary text-decoration-none fw-medium">Privacy Policy</a></label
+              >
+            </div>
+
+            <!-- Login Button -->
+            <button class="btn btn-secondary w-50 d-block mx-auto rounded-3 mt-4" type="submit">
+              <span class="fw-medium">Register</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+
+          <!-- Don't have an account -->
+          <div class="text-body-tertiary text-center">
+            Already have an account?
+            <a href="login.html" class="text-secondary text-decoration-none fw-medium">Login</a>
+          </div>
+        </form>
+      </section>
+    </main>
     <script src="../js/pages/signup.js" type="module"></script>
     <script src="../js/temp/devTool.js" type="module">
       /*

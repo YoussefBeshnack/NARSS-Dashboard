@@ -1,5 +1,5 @@
-import { apiClient } from './api.js';
-import { API_CONFIG } from '../core/constants.js';
+import { apiClient } from "./api.js";
+import { API_CONFIG } from "../core/constants.js";
 
 export class AuthService {
   /**
@@ -23,6 +23,15 @@ export class AuthService {
    */
   async logout() {
     return apiClient.post(API_CONFIG.ENDPOINTS.LOGOUT);
+  }
+
+  /**
+   * * Optional server-side password reset request
+   * @param {object} credentials - { email }
+   */
+
+  async forgotPassword(credentials) {
+    return apiClient.post(API_CONFIG.ENDPOINTS.FORGOTPASSWORD, credentials);
   }
 }
 

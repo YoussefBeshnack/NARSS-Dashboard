@@ -38,6 +38,19 @@
   scrollbar-width: none;
 }
 
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.pointer-events-none {
+  pointer-events: none;
+}
+
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* ===================================
     COMPONENTS
    =================================== */
