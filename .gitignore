@@ -1,0 +1,29 @@
+# =================================================================
+# Git Ignore Configuration for NARSS Dashboard
+# =================================================================
+
+# 1. Environment Variable Files (Contains Secrets & Passwords)
+.env
+.env.*
+!.env.example
+
+# 2. Node Dependencies
+node_modules/
+server/node_modules/
+client/node_modules/
+
+# 3. User Uploaded Files & Receipts
+server/uploads/*
+!server/uploads/.gitkeep
+
+# 4. Logs & Cache
+*.log
+npm-debug.log*
+yarn-debug.log*
+.eslintcache
+
+# 5. OS & Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,10 +1,11 @@
 import { AuthStore } from "../services/auth.store.js";
+import { handleLogout } from "../core/logout.js";
 
 const control = new AuthStore();
 
 const shortcutMap = {
   "Ctrl+Shift+KeyS": () => control.setSession({ token: "temp" }),
-  "Ctrl+Shift+KeyL": () => control.clearSession(),
+  "Ctrl+Shift+KeyL": () => await handleLogout(),
 };
 
 document.addEventListener("keydown", (event) => {

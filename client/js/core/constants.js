@@ -12,7 +12,7 @@ export const ROUTES = {
  * API Configuration
  */
 export const API_CONFIG = {
-  BASE_URL: "https://api.example.com/v1",
+  BASE_URL: "http://localhost:5000/api",
   ENDPOINTS: {
     LOGIN: "/auth/login",
     SIGNUP: "/auth/signup",
