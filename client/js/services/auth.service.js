@@ -12,26 +12,33 @@ export class AuthService {
 
   /**
    * Sends new user signup payload to API
-   * @param {Object} userData - { fullName, email, password }
+   * @param {Object} userData - { fullName, email, password, role }
    */
   async signup(userData) {
     return apiClient.post(API_CONFIG.ENDPOINTS.SIGNUP, userData);
   }
 
   /**
-   * Optional server-side logout request
+   * Request password reset token via email
+   * @param {Object} credentials - { email }
    */
-  async logout() {
-    return apiClient.post(API_CONFIG.ENDPOINTS.LOGOUT);
+  async forgotPassword(credentials) {
+    return apiClient.post(API_CONFIG.ENDPOINTS.FORGOTPASSWORD, credentials);
   }
 
   /**
-   * * Optional server-side password reset request
-   * @param {object} credentials - { email }
+   * Submit reset token and new password
+   * @param {Object} data - { resetToken, newPassword }
    */
+  async resetPassword(data) {
+    return apiClient.post("/auth/reset-password", data);
+  }
 
-  async forgotPassword(credentials) {
-    return apiClient.post(API_CONFIG.ENDPOINTS.FORGOTPASSWORD, credentials);
+  /**
+   * Get active user profile
+   */
+  async getMe() {
+    return apiClient.get("/auth/me");
   }
 }
 

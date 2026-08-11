@@ -124,9 +124,15 @@ export class ApiClient {
     }
 
     const url = `${this.baseUrl}${endpoint}`;
+    const headers = this.getHeaders(options.headers);
+    
+    if (options.body instanceof FormData) {
+      headers.delete('Content-Type');
+    }
+
     const config = {
       ...options,
-      headers: this.getHeaders(options.headers),
+      headers,
     };
 
     let response;
@@ -149,12 +155,23 @@ export class ApiClient {
           throw new Error('Request failed after token refresh retry');
         }
 
+        if (options.responseType === 'blob') {
+          return await retryResponse.blob();
+        }
+
         return await retryResponse.json().catch(() => ({}));
       } catch (refreshErr) {
         authStore.clearSession();
         window.location.href = ROUTES.LOGIN;
         throw new Error('Session expired. Please log in again.');
       }
+    }
+
+    if (options.responseType === 'blob') {
+      if (!response.ok) {
+        throw new Error(`Export failed with status ${response.status}`);
+      }
+      return await response.blob();
     }
 
     let data = {};
