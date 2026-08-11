@@ -236,6 +236,77 @@ const getMe = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get / search registered users by name or email
+ * @route   GET /api/auth/users
+ * @access  Private
+ */
+const getUsers = asyncHandler(async (req, res) => {
+  const { search, limit } = req.query;
+  let query = {};
+
+  if (search) {
+    query = {
+      $or: [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ],
+    };
+  }
+
+  // When limit=all (used by User Management admin view), return all users
+  const queryBuilder = User.find(query).select('_id name email role createdAt');
+  if (limit !== 'all') {
+    queryBuilder.limit(20);
+  }
+
+  const users = await queryBuilder;
+
+  res.status(200).json({
+    success: true,
+    count: users.length,
+    users,
+  });
+});
+
+/**
+ * @desc    Update a user's role (Admin only)
+ * @route   PUT /api/auth/users/:id
+ * @access  Private (Admin)
+ */
+const updateUserRole = asyncHandler(async (req, res) => {
+  const { role } = req.body;
+  const validRoles = ['Admin', 'Manager', 'Researcher', 'External Partner'];
+
+  if (!role || !validRoles.includes(role)) {
+    res.status(400);
+    throw new Error(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+  }
+
+  // Prevent admin from demoting themselves
+  if (req.params.id === req.user._id.toString() && role !== 'Admin') {
+    res.status(400);
+    throw new Error('Admins cannot change their own role');
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.params.id,
+    { role },
+    { new: true, runValidators: true }
+  ).select('_id name email role createdAt');
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `User role updated to ${role} successfully`,
+    user,
+  });
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -243,4 +314,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getMe,
+  getUsers,
+  updateUserRole,
 };

@@ -9,13 +9,27 @@ import { publicationService } from "../services/publication.service.js";
 import { Toast } from "../components/toast.js";
 import { Modal } from "../components/modal.js";
 import { ROUTES } from "../core/constants.js";
+import { setupUserAutocomplete } from "../components/user-autocomplete.js";
 
 // Global State
 let currentUser = null;
-let userRole = 'Researcher';
+let userRole = "Researcher";
 let chartBudgetSpentInstance = null;
 let chartMilestonesInstance = null;
 let projectsCache = [];
+
+/**
+ * Silently pre-loads projectsCache so modal project dropdowns are populated
+ * regardless of which view the user is currently on (Bug 4 fix).
+ */
+async function loadProjectsCache() {
+  try {
+    const res = await projectService.getProjects();
+    if (res.success) projectsCache = res.projects || [];
+  } catch {
+    // Non-fatal — cache stays empty and modals will re-try
+  }
+}
 
 // Main Entry Point
 if (requireAuth()) {
@@ -26,8 +40,8 @@ async function initDashboard() {
   try {
     // 1. Fetch authenticated user profile
     const profileRes = await authService.getMe().catch(() => ({ user: authStore.getUser() }));
-    currentUser = profileRes.user || authStore.getUser() || { name: 'User', role: 'Researcher' };
-    userRole = currentUser.role || 'Researcher';
+    currentUser = profileRes.user || authStore.getUser() || { name: "User", role: "Researcher" };
+    userRole = currentUser.role || "Researcher";
 
     // 2. Setup User Interface Shell
     updateUserShell();
@@ -35,12 +49,15 @@ async function initDashboard() {
     setupGlobalActions();
     setupLogout();
 
-    // 3. Load initial view based on URL hash
-    const initialView = window.location.hash.replace('#', '') || 'dashboard';
+    // 3. Pre-populate projectsCache so modal dropdowns work from any view (Bug 4 fix)
+    loadProjectsCache();
+
+    // 4. Load initial view based on URL hash
+    const initialView = window.location.hash.replace("#", "") || "dashboard";
     switchView(initialView);
   } catch (err) {
-    console.error('Dashboard init error:', err);
-    Toast.error('Failed to initialize session.');
+    console.error("Dashboard init error:", err);
+    Toast.error("Failed to initialize session.");
   }
 }
 
@@ -48,31 +65,36 @@ async function initDashboard() {
 // UI SHELL & ROLE PERMISSIONS
 // ----------------------------------------------------
 function updateUserShell() {
-  const nameEl = document.getElementById('sidebar-user-name');
-  const roleEl = document.getElementById('sidebar-user-role');
-  const initialsEl = document.getElementById('user-avatar-initials');
+  const nameEl = document.getElementById("sidebar-user-name");
+  const roleEl = document.getElementById("sidebar-user-role");
+  const initialsEl = document.getElementById("user-avatar-initials");
 
   if (nameEl) nameEl.textContent = currentUser.name;
   if (roleEl) roleEl.textContent = userRole;
   if (initialsEl) initialsEl.textContent = currentUser.name.charAt(0).toUpperCase();
 
-  // Role permissions
-  const isAdmin = userRole === 'Admin';
-  const isManagerOrAdmin = userRole === 'Admin' || userRole === 'Manager';
+  const isAdmin = userRole === "Admin";
+  const isManagerOrAdmin = userRole === "Admin" || userRole === "Manager";
 
   // Toggle global header buttons based on role
-  const newProjBtn = document.getElementById('global-new-project-btn');
+  const newProjBtn = document.getElementById("global-new-project-btn");
   if (newProjBtn) {
-    newProjBtn.classList.toggle('d-none', !isManagerOrAdmin);
+    newProjBtn.classList.toggle("d-none", !isManagerOrAdmin);
+  }
+
+  // Show User Management nav link only for Admins
+  const userMgmtLink = document.getElementById("nav-user-management");
+  if (userMgmtLink) {
+    userMgmtLink.classList.toggle("d-none", !isAdmin);
   }
 }
 
 function setupLogout() {
-  const logoutBtn = document.getElementById('logout-btn');
+  const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
+    logoutBtn.addEventListener("click", () => {
       authStore.clearSession();
-      Toast.info('Logged out.');
+      Toast.info("Logged out.");
       setTimeout(() => {
         window.location.href = ROUTES.LOGIN;
       }, 300);
@@ -81,71 +103,73 @@ function setupLogout() {
 }
 
 function setupNavigation() {
-  const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+  const navLinks = document.querySelectorAll(".sidebar-nav .nav-link");
   navLinks.forEach((link) => {
-    link.addEventListener('click', (e) => {
+    link.addEventListener("click", (e) => {
       e.preventDefault();
-      const targetView = link.getAttribute('data-view');
+      const targetView = link.getAttribute("data-view");
       window.location.hash = targetView;
       switchView(targetView);
     });
   });
 
-  window.addEventListener('hashchange', () => {
-    const view = window.location.hash.replace('#', '') || 'dashboard';
+  window.addEventListener("hashchange", () => {
+    const view = window.location.hash.replace("#", "") || "dashboard";
     switchView(view);
   });
 }
 
 function switchView(viewName) {
   // Update sidebar active state
-  const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+  const navLinks = document.querySelectorAll(".sidebar-nav .nav-link");
   navLinks.forEach((link) => {
-    const isTarget = link.getAttribute('data-view') === viewName;
-    link.classList.toggle('active', isTarget);
+    const isTarget = link.getAttribute("data-view") === viewName;
+    link.classList.toggle("active", isTarget);
   });
 
   // Hide all panels
-  const panels = document.querySelectorAll('.view-panel');
-  panels.forEach((panel) => panel.classList.add('d-none'));
+  const panels = document.querySelectorAll(".view-panel");
+  panels.forEach((panel) => panel.classList.add("d-none"));
 
   // Show target panel
   const targetPanel = document.getElementById(`view-${viewName}`);
   if (targetPanel) {
-    targetPanel.classList.remove('d-none');
+    targetPanel.classList.remove("d-none");
   }
 
   // Set page title
-  const pageTitle = document.getElementById('page-title');
+  const pageTitle = document.getElementById("page-title");
   const titles = {
-    dashboard: 'Dashboard Overview & Analytics',
-    projects: 'Project Management & Timelines',
-    expenses: 'Finance & Expense Logs',
-    documents: 'Document Repository & Versioning',
-    publications: 'Research Outputs & Publications',
-    profile: 'User Profile',
-    settings: 'System Settings & Role Permissions',
+    dashboard: "Dashboard Overview & Analytics",
+    projects: "Project Management & Timelines",
+    expenses: "Finance & Expense Logs",
+    documents: "Document Repository & Versioning",
+    publications: "Research Outputs & Publications",
+    profile: "User Profile",
+    settings: "System Settings & Role Permissions",
+    userManagement: "User Management",
   };
-  if (pageTitle) pageTitle.textContent = titles[viewName] || 'Dashboard';
+  if (pageTitle) pageTitle.textContent = titles[viewName] || "Dashboard";
 
   // Load data for specific view
-  if (viewName === 'dashboard') loadDashboardView();
-  else if (viewName === 'projects') loadProjectsView();
-  else if (viewName === 'expenses') loadExpensesView();
-  else if (viewName === 'documents') loadDocumentsView();
-  else if (viewName === 'publications') loadPublicationsView();
-  else if (viewName === 'profile') loadProfileView();
+  if (viewName === "dashboard") loadDashboardView();
+  else if (viewName === "projects") loadProjectsView();
+  else if (viewName === "expenses") loadExpensesView();
+  else if (viewName === "documents") loadDocumentsView();
+  else if (viewName === "publications") loadPublicationsView();
+  else if (viewName === "profile") loadProfileView();
+  else if (viewName === "userManagement") loadUserManagementView();
 }
 
 function setupGlobalActions() {
-  const newProjBtn = document.getElementById('global-new-project-btn');
-  if (newProjBtn) newProjBtn.addEventListener('click', openCreateProjectModal);
+  const newProjBtn = document.getElementById("global-new-project-btn");
+  if (newProjBtn) newProjBtn.addEventListener("click", openCreateProjectModal);
 
-  const logExpBtn = document.getElementById('global-log-expense-btn');
-  if (logExpBtn) logExpBtn.addEventListener('click', openLogExpenseModal);
+  const logExpBtn = document.getElementById("global-log-expense-btn");
+  if (logExpBtn) logExpBtn.addEventListener("click", openLogExpenseModal);
 
-  const uploadDocBtn = document.getElementById('global-upload-doc-btn');
-  if (uploadDocBtn) uploadDocBtn.addEventListener('click', openUploadDocModal);
+  const uploadDocBtn = document.getElementById("global-upload-doc-btn");
+  if (uploadDocBtn) uploadDocBtn.addEventListener("click", openUploadDocModal);
 }
 
 // ----------------------------------------------------
@@ -159,59 +183,61 @@ async function loadDashboardView() {
     const data = res.data;
 
     // Update KPI cards
-    document.getElementById('kpi-total-projects').textContent = data.projects?.total || 0;
-    document.getElementById('kpi-active-projects').textContent = `${data.projects?.active || 0} Active Projects`;
+    document.getElementById("kpi-total-projects").textContent = data.projects?.total || 0;
+    document.getElementById("kpi-active-projects").textContent = `${data.projects?.active || 0} Active Projects`;
 
     const spent = data.finances?.overallSpent || 0;
     const util = data.finances?.utilizationPercentage || 0;
-    document.getElementById('kpi-spent').textContent = `${spent.toLocaleString()} EGP`;
-    document.getElementById('kpi-budget-utilization').textContent = `${util}% of budget spent`;
+    document.getElementById("kpi-spent").textContent = `${spent.toLocaleString()} EGP`;
+    document.getElementById("kpi-budget-utilization").textContent = `${util}% of budget spent`;
 
-    document.getElementById('kpi-outputs').textContent = data.outputs?.total || 0;
+    document.getElementById("kpi-outputs").textContent = data.outputs?.total || 0;
     const pubBreakdown = data.outputs?.breakdown || {};
-    document.getElementById('kpi-outputs-breakdown').textContent = `${pubBreakdown.Publication || 0} Pubs, ${pubBreakdown.Patent || 0} Patents, ${pubBreakdown.Dataset || 0} Datasets`;
+    document.getElementById("kpi-outputs-breakdown").textContent =
+      `${pubBreakdown.Publication || 0} Pubs, ${pubBreakdown.Patent || 0} Patents, ${pubBreakdown.Dataset || 0} Datasets`;
 
     const msRate = data.milestones?.completionRate || 0;
-    document.getElementById('kpi-milestones-rate').textContent = `${msRate}%`;
-    document.getElementById('kpi-milestones-count').textContent = `${data.milestones?.completed || 0} of ${data.milestones?.total || 0} completed`;
+    document.getElementById("kpi-milestones-rate").textContent = `${msRate}%`;
+    document.getElementById("kpi-milestones-count").textContent =
+      `${data.milestones?.completed || 0} of ${data.milestones?.total || 0} completed`;
 
     // Render Charts
     renderBudgetChart(data.chartProjectData || []);
     renderMilestonesChart(data.milestones || {});
   } catch (err) {
-    Toast.error('Failed to load analytics stats.');
+    Toast.error("Failed to load analytics stats.");
   }
 }
 
 function renderBudgetChart(chartProjects) {
-  const ctx = document.getElementById('chart-budget-spent');
+  const ctx = document.getElementById("chart-budget-spent");
   if (!ctx) return;
 
   if (chartBudgetSpentInstance) {
     chartBudgetSpentInstance.destroy();
   }
 
-  const labels = chartProjects.map((p) => p.title.length > 20 ? p.title.substring(0, 18) + '...' : p.title);
+  const labels = chartProjects.map((p) => (p.title.length > 20 ? p.title.substring(0, 18) + "..." : p.title));
   const budgets = chartProjects.map((p) => p.budget);
   const spents = chartProjects.map((p) => p.spent);
 
   chartBudgetSpentInstance = new Chart(ctx, {
-    type: 'bar',
+    type: "bar",
     data: {
       labels,
       datasets: [
         {
-          label: 'Allocated Budget',
+          label: "Allocated Budget",
           data: budgets,
-          backgroundColor: 'rgba(0, 165, 212, 0.6)',
-          borderColor: '#00a5d4',
+          backgroundColor: "rgba(0, 165, 212, 0.6)",
+          borderColor: "#00a5d4",
           borderWidth: 1,
         },
         {
-          label: 'Actual Spent',
+          label: "Actual Spent",
           data: spents,
-          backgroundColor: 'rgba(16, 185, 129, 0.6)',
-          borderColor: '#10b981',
+          backgroundColor: "rgba(16, 185, 129, 0.6)",
+          borderColor: "#10b981",
           borderWidth: 1,
         },
       ],
@@ -220,18 +246,18 @@ function renderBudgetChart(chartProjects) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { ticks: { color: '#8d99ae' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-        y: { ticks: { color: '#8d99ae' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        x: { ticks: { color: "#8d99ae" }, grid: { color: "rgba(255,255,255,0.05)" } },
+        y: { ticks: { color: "#8d99ae" }, grid: { color: "rgba(255,255,255,0.05)" } },
       },
       plugins: {
-        legend: { labels: { color: '#e0e6ed' } },
+        legend: { labels: { color: "#e0e6ed" } },
       },
     },
   });
 }
 
 function renderMilestonesChart(milestonesData) {
-  const ctx = document.getElementById('chart-milestones');
+  const ctx = document.getElementById("chart-milestones");
   if (!ctx) return;
 
   if (chartMilestonesInstance) {
@@ -239,17 +265,13 @@ function renderMilestonesChart(milestonesData) {
   }
 
   chartMilestonesInstance = new Chart(ctx, {
-    type: 'doughnut',
+    type: "doughnut",
     data: {
-      labels: ['Completed', 'In Progress', 'Pending'],
+      labels: ["Completed", "In Progress", "Pending"],
       datasets: [
         {
-          data: [
-            milestonesData.completed || 0,
-            milestonesData.inProgress || 0,
-            milestonesData.pending || 0,
-          ],
-          backgroundColor: ['#10b981', '#3b82f6', '#f59e0b'],
+          data: [milestonesData.completed || 0, milestonesData.inProgress || 0, milestonesData.pending || 0],
+          backgroundColor: ["#10b981", "#3b82f6", "#f59e0b"],
           borderWidth: 0,
         },
       ],
@@ -258,7 +280,7 @@ function renderMilestonesChart(milestonesData) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#e0e6ed' } },
+        legend: { position: "bottom", labels: { color: "#e0e6ed" } },
       },
     },
   });
@@ -268,8 +290,8 @@ function renderMilestonesChart(milestonesData) {
 // VIEW 2: PROJECT MANAGEMENT
 // ----------------------------------------------------
 async function loadProjectsView() {
-  const search = document.getElementById('project-search-input')?.value || '';
-  const status = document.getElementById('project-status-filter')?.value || '';
+  const search = document.getElementById("project-search-input")?.value || "";
+  const status = document.getElementById("project-status-filter")?.value || "";
 
   try {
     const res = await projectService.getProjects({ search, status });
@@ -279,32 +301,32 @@ async function loadProjectsView() {
     renderProjectsGrid(projectsCache);
 
     // Setup filter listeners once
-    const searchInput = document.getElementById('project-search-input');
-    const statusFilter = document.getElementById('project-status-filter');
-    const createBtn = document.getElementById('create-project-btn');
+    const searchInput = document.getElementById("project-search-input");
+    const statusFilter = document.getElementById("project-status-filter");
+    const createBtn = document.getElementById("create-project-btn");
 
     if (searchInput && !searchInput.dataset.hasListener) {
-      searchInput.dataset.hasListener = 'true';
-      searchInput.addEventListener('input', () => loadProjectsView());
+      searchInput.dataset.hasListener = "true";
+      searchInput.addEventListener("input", () => loadProjectsView());
     }
     if (statusFilter && !statusFilter.dataset.hasListener) {
-      statusFilter.dataset.hasListener = 'true';
-      statusFilter.addEventListener('change', () => loadProjectsView());
+      statusFilter.dataset.hasListener = "true";
+      statusFilter.addEventListener("change", () => loadProjectsView());
     }
     if (createBtn) {
-      createBtn.classList.toggle('d-none', !(userRole === 'Admin' || userRole === 'Manager'));
+      createBtn.classList.toggle("d-none", !(userRole === "Admin" || userRole === "Manager"));
       if (!createBtn.dataset.hasListener) {
-        createBtn.dataset.hasListener = 'true';
-        createBtn.addEventListener('click', openCreateProjectModal);
+        createBtn.dataset.hasListener = "true";
+        createBtn.addEventListener("click", openCreateProjectModal);
       }
     }
   } catch (err) {
-    Toast.error('Failed to load projects.');
+    Toast.error("Failed to load projects.");
   }
 }
 
 function renderProjectsGrid(projects) {
-  const container = document.getElementById('projects-grid-container');
+  const container = document.getElementById("projects-grid-container");
   if (!container) return;
 
   if (projects.length === 0) {
@@ -318,34 +340,35 @@ function renderProjectsGrid(projects) {
     return;
   }
 
-  container.innerHTML = projects.map((p) => {
-    const statusClass = `badge-${p.status ? p.status.toLowerCase().replace(/\s+/g, '') : 'planning'}`;
-    const piName = p.pi ? p.pi.name : 'Unassigned';
-    const membersCount = p.teamMembers ? p.teamMembers.length : 0;
-    const milestonesCount = p.milestones ? p.milestones.length : 0;
-    const completedMs = p.milestones ? p.milestones.filter((m) => m.status === 'Completed').length : 0;
+  container.innerHTML = projects
+    .map((p) => {
+      const statusClass = `badge-${p.status ? p.status.toLowerCase().replace(/\s+/g, "") : "planning"}`;
+      const piName = p.pi ? p.pi.name : "Unassigned";
+      const membersCount = p.teamMembers ? p.teamMembers.length : 0;
+      const milestonesCount = p.milestones ? p.milestones.length : 0;
+      const completedMs = p.milestones ? p.milestones.filter((m) => m.status === "Completed").length : 0;
 
-    return `
+      return `
       <div class="col-12 col-md-6 col-xl-4">
         <div class="glass-card p-4 h-100 d-flex flex-column justify-content-between">
           <div>
             <div class="d-flex align-items-start justify-content-between mb-3">
               <span class="badge ${statusClass} px-3 py-2">${p.status}</span>
-              <small class="text-muted"><i class="fa-solid fa-calendar me-1"></i>${new Date(p.startDate).toLocaleDateString()} - ${new Date(p.endDate).toLocaleDateString()}</small>
+              <small class="text-light"><i class="fa-solid fa-calendar me-1"></i>${new Date(p.startDate).toLocaleDateString()} - ${new Date(p.endDate).toLocaleDateString()}</small>
             </div>
             
             <h5 class="fw-bold text-light mb-2">${p.title}</h5>
             <p class="text-secondary small mb-3 text-truncate" style="max-height: 48px; white-space: normal;">${p.description}</p>
             
             <div class="d-flex align-items-center justify-content-between text-muted small mb-2">
-              <span>PI: <strong class="text-light">${piName}</strong></span>
-              <span>Budget: <strong class="text-success">${p.budget.toLocaleString()} EGP</strong></span>
+              <span class="text-light">PI: <strong class="text-light">${piName}</strong></span>
+              <span class="text-light">Budget: <strong class="text-success">${p.budget.toLocaleString()} EGP</strong></span>
             </div>
 
             <div class="mb-3">
               <div class="d-flex align-items-center justify-content-between small text-muted mb-1">
                 <span>Milestones Progress</span>
-                <span>${completedMs} / ${milestonesCount}</span>
+                <span class="text-light">${completedMs} / ${milestonesCount}</span>
               </div>
               <div class="progress bg-dark" style="height: 6px;">
                 <div class="progress-bar bg-info" style="width: ${milestonesCount ? (completedMs / milestonesCount) * 100 : 0}%;"></div>
@@ -354,7 +377,7 @@ function renderProjectsGrid(projects) {
           </div>
 
           <div class="pt-3 border-top border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
-            <small class="text-muted"><i class="fa-solid fa-users me-1"></i>${membersCount} Members</small>
+            <small class="text-light"><i class="fa-solid fa-users me-1"></i>${membersCount} Members</small>
             <button class="btn btn-outline-info btn-sm rounded-2 view-project-detail-btn" data-id="${p._id}">
               Details & Milestones <i class="fa-solid fa-arrow-right ms-1"></i>
             </button>
@@ -362,12 +385,13 @@ function renderProjectsGrid(projects) {
         </div>
       </div>
     `;
-  }).join('');
+    })
+    .join("");
 
   // Attach Detail Button Click Handlers
-  container.querySelectorAll('.view-project-detail-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-id');
+  container.querySelectorAll(".view-project-detail-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
       openProjectDetailModal(id);
     });
   });
@@ -379,46 +403,56 @@ async function openProjectDetailModal(projectId) {
     if (!res.success) return;
 
     const p = res.project;
-    const isOwnerOrAdmin = userRole === 'Admin' || userRole === 'Manager' || (p.pi && p.pi._id === currentUser.id);
+    const isOwnerOrAdmin = userRole === "Admin" || userRole === "Manager" || (p.pi && p.pi._id === currentUser.id);
 
-    const membersHtml = p.teamMembers && p.teamMembers.length > 0
-      ? p.teamMembers.map((m) => `
+    const membersHtml =
+      p.teamMembers && p.teamMembers.length > 0
+        ? p.teamMembers
+            .map(
+              (m) => `
           <div class="d-flex align-items-center justify-content-between py-2 border-bottom border-secondary border-opacity-25">
             <div>
-              <div class="fw-semibold text-light">${m.user ? m.user.name : 'User'}</div>
-              <small class="text-secondary">${m.user ? m.user.email : ''} (${m.role})</small>
+              <div class="fw-semibold text-light">${m.user ? m.user.name : "User"}</div>
+              <small class="text-secondary">${m.user ? m.user.email : ""} (${m.role})</small>
             </div>
-            ${isOwnerOrAdmin ? `<button class="btn btn-outline-danger btn-sm remove-member-btn" data-user-id="${m.user ? m.user._id : ''}"><i class="fa-solid fa-trash"></i></button>` : ''}
+            ${isOwnerOrAdmin ? `<button class="btn btn-outline-danger btn-sm remove-member-btn" data-user-id="${m.user ? m.user._id : ""}"><i class="fa-solid fa-trash"></i></button>` : ""}
           </div>
-        `).join('')
-      : '<p class="text-muted small">No team members assigned.</p>';
+        `,
+            )
+            .join("")
+        : '<p class="text-muted small">No team members assigned.</p>';
 
-    const milestonesHtml = p.milestones && p.milestones.length > 0
-      ? p.milestones.map((m) => `
+    const milestonesHtml =
+      p.milestones && p.milestones.length > 0
+        ? p.milestones
+            .map(
+              (m) => `
           <div class="d-flex align-items-center justify-content-between py-2 border-bottom border-secondary border-opacity-25">
             <div>
-              <div class="fw-semibold text-light ${m.status === 'Completed' ? 'text-decoration-line-through text-muted' : ''}">${m.title}</div>
-              <small class="text-secondary">Due: ${new Date(m.deadline).toLocaleDateString()} | Status: <span class="badge ${m.status === 'Completed' ? 'bg-success' : 'bg-warning text-dark'}">${m.status}</span></small>
+              <div class="fw-semibold text-light ${m.status === "Completed" ? "text-decoration-line-through text-muted" : ""}">${m.title}</div>
+              <small class="text-secondary">Due: ${new Date(m.deadline).toLocaleDateString()} | Status: <span class="badge ${m.status === "Completed" ? "bg-success" : "bg-warning text-dark"}">${m.status}</span></small>
             </div>
             <div class="d-flex align-items-center gap-2">
-              <button class="btn btn-sm ${m.status === 'Completed' ? 'btn-outline-secondary' : 'btn-success'} toggle-ms-btn" data-ms-id="${m._id}" data-status="${m.status}">
-                ${m.status === 'Completed' ? 'Undo' : 'Complete'}
+              <button class="btn btn-sm ${m.status === "Completed" ? "btn-outline-secondary" : "btn-success"} toggle-ms-btn" data-ms-id="${m._id}" data-status="${m.status}">
+                ${m.status === "Completed" ? "Undo" : "Complete"}
               </button>
-              ${isOwnerOrAdmin ? `<button class="btn btn-outline-danger btn-sm delete-ms-btn" data-ms-id="${m._id}"><i class="fa-solid fa-trash"></i></button>` : ''}
+              ${isOwnerOrAdmin ? `<button class="btn btn-outline-danger btn-sm delete-ms-btn" data-ms-id="${m._id}"><i class="fa-solid fa-trash"></i></button>` : ""}
             </div>
           </div>
-        `).join('')
-      : '<p class="text-muted small">No milestones defined.</p>';
+        `,
+            )
+            .join("")
+        : '<p class="text-muted small">No milestones defined.</p>';
 
-    const modalContent = document.createElement('div');
+    const modalContent = document.createElement("div");
     modalContent.innerHTML = `
       <div class="mb-3">
         <p class="text-secondary mb-3">${p.description}</p>
         <div class="row g-2 mb-3 small">
-          <div class="col-6"><strong>Funding Source:</strong> ${p.fundingSource || 'Internal'}</div>
+          <div class="col-6"><strong>Funding Source:</strong> ${p.fundingSource || "Internal"}</div>
           <div class="col-6"><strong>Status:</strong> ${p.status}</div>
           <div class="col-6"><strong>Budget:</strong> ${p.budget.toLocaleString()} EGP</div>
-          <div class="col-6"><strong>PI:</strong> ${p.pi ? p.pi.name : 'N/A'}</div>
+          <div class="col-6"><strong>PI:</strong> ${p.pi ? p.pi.name : "N/A"}</div>
         </div>
       </div>
 
@@ -428,7 +462,7 @@ async function openProjectDetailModal(projectId) {
       <div class="mb-4">
         <div class="d-flex align-items-center justify-content-between mb-2">
           <h6 class="fw-bold text-light m-0"><i class="fa-solid fa-users text-info me-2"></i>Team Members</h6>
-          ${isOwnerOrAdmin ? `<button class="btn btn-sm btn-outline-info" id="add-member-btn"><i class="fa-solid fa-user-plus me-1"></i> Add Member</button>` : ''}
+          ${isOwnerOrAdmin ? `<button class="btn btn-sm btn-outline-info" id="add-member-btn"><i class="fa-solid fa-user-plus me-1"></i> Add Member</button>` : ""}
         </div>
         ${membersHtml}
       </div>
@@ -437,24 +471,37 @@ async function openProjectDetailModal(projectId) {
       <div>
         <div class="d-flex align-items-center justify-content-between mb-2">
           <h6 class="fw-bold text-light m-0"><i class="fa-solid fa-list-check text-warning me-2"></i>Project Milestones</h6>
-          ${isOwnerOrAdmin ? `<button class="btn btn-sm btn-outline-warning" id="add-milestone-btn"><i class="fa-solid fa-plus me-1"></i> Add Milestone</button>` : ''}
+          ${isOwnerOrAdmin ? `<button class="btn btn-sm btn-outline-warning" id="add-milestone-btn"><i class="fa-solid fa-plus me-1"></i> Add Milestone</button>` : ""}
         </div>
         ${milestonesHtml}
       </div>
     `;
 
     const actions = [];
-    if (userRole === 'Admin') {
+
+    // Edit Project button (Bugs 1 & 2 fix) – available to Admin, Manager, or the PI
+    if (isOwnerOrAdmin) {
       actions.push({
-        text: 'Delete Project',
-        class: 'btn-danger me-auto',
+        text: "Edit Project",
+        class: "btn-outline-info me-auto",
+        onClick: (_, m) => {
+          m.close();
+          openEditProjectModal(p);
+        },
+      });
+    }
+
+    if (userRole === "Admin") {
+      actions.push({
+        text: "Delete Project",
+        class: "btn-danger",
         onClick: async (_, m) => {
           Modal.confirm({
-            title: 'Delete Project',
+            title: "Delete Project",
             message: `Are you sure you want to delete project "${p.title}"?`,
             onConfirm: async () => {
               await projectService.deleteProject(p._id);
-              Toast.success('Project deleted.');
+              Toast.success("Project deleted.");
               m.close();
               loadProjectsView();
             },
@@ -466,14 +513,15 @@ async function openProjectDetailModal(projectId) {
     const modal = new Modal({
       title: p.title,
       content: modalContent,
-      size: 'modal-lg',
+      size: "modal-lg",
       actions,
     });
 
+
     // Attach internal event handlers inside detail modal
-    const addMemberBtn = modalContent.querySelector('#add-member-btn');
+    const addMemberBtn = modalContent.querySelector("#add-member-btn");
     if (addMemberBtn) {
-      addMemberBtn.addEventListener('click', () => {
+      addMemberBtn.addEventListener("click", () => {
         openAddMemberModal(p._id, () => {
           modal.close();
           openProjectDetailModal(p._id);
@@ -481,9 +529,9 @@ async function openProjectDetailModal(projectId) {
       });
     }
 
-    const addMsBtn = modalContent.querySelector('#add-milestone-btn');
+    const addMsBtn = modalContent.querySelector("#add-milestone-btn");
     if (addMsBtn) {
-      addMsBtn.addEventListener('click', () => {
+      addMsBtn.addEventListener("click", () => {
         openAddMilestoneModal(p._id, () => {
           modal.close();
           openProjectDetailModal(p._id);
@@ -492,11 +540,11 @@ async function openProjectDetailModal(projectId) {
     }
 
     // Toggle Milestone handlers
-    modalContent.querySelectorAll('.toggle-ms-btn').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const msId = btn.getAttribute('data-ms-id');
-        const currentStatus = btn.getAttribute('data-status');
-        const newStatus = currentStatus === 'Completed' ? 'In Progress' : 'Completed';
+    modalContent.querySelectorAll(".toggle-ms-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const msId = btn.getAttribute("data-ms-id");
+        const currentStatus = btn.getAttribute("data-status");
+        const newStatus = currentStatus === "Completed" ? "In Progress" : "Completed";
 
         try {
           await projectService.updateMilestone(p._id, msId, { status: newStatus });
@@ -505,168 +553,313 @@ async function openProjectDetailModal(projectId) {
           openProjectDetailModal(p._id);
           loadProjectsView();
         } catch (err) {
-          Toast.error(err.message || 'Failed to update milestone.');
+          Toast.error(err.message || "Failed to update milestone.");
         }
       });
     });
 
     // Delete Milestone handlers
-    modalContent.querySelectorAll('.delete-ms-btn').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const msId = btn.getAttribute('data-ms-id');
+    modalContent.querySelectorAll(".delete-ms-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const msId = btn.getAttribute("data-ms-id");
         try {
           await projectService.deleteMilestone(p._id, msId);
-          Toast.success('Milestone deleted.');
+          Toast.success("Milestone deleted.");
           modal.close();
           openProjectDetailModal(p._id);
           loadProjectsView();
         } catch (err) {
-          Toast.error(err.message || 'Failed to delete milestone.');
+          Toast.error(err.message || "Failed to delete milestone.");
         }
       });
     });
 
     // Remove Member handlers
-    modalContent.querySelectorAll('.remove-member-btn').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const uId = btn.getAttribute('data-user-id');
+    modalContent.querySelectorAll(".remove-member-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const uId = btn.getAttribute("data-user-id");
         if (!uId) return;
         try {
           await projectService.removeTeamMember(p._id, uId);
-          Toast.success('Team member removed.');
+          Toast.success("Team member removed.");
           modal.close();
           openProjectDetailModal(p._id);
         } catch (err) {
-          Toast.error(err.message || 'Failed to remove member.');
+          Toast.error(err.message || "Failed to remove member.");
         }
       });
     });
-
   } catch (err) {
-    Toast.error('Failed to load project details.');
+    Toast.error("Failed to load project details.");
   }
 }
 
 function openCreateProjectModal() {
-  const formHtml = `
-    <form id="create-project-form">
-      <div class="mb-3">
-        <label class="fw-medium">Project Title</label>
-        <input type="text" name="title" class="form-control" required placeholder="Satellite Image AI Pipeline" />
+  const formEl = document.createElement("form");
+  formEl.id = "create-project-form";
+
+  const defaultPiId = currentUser ? currentUser.id || currentUser._id || "" : "";
+  const defaultPiName = currentUser ? `${currentUser.name} (${currentUser.email})` : "";
+
+  formEl.innerHTML = `
+    <div class="mb-3">
+      <label class="fw-medium">Project Title</label>
+      <input type="text" name="title" class="form-control" required placeholder="Satellite Image AI Pipeline" />
+    </div>
+    <div class="mb-3">
+      <label class="fw-medium">Description</label>
+      <textarea name="description" class="form-control" rows="3" required placeholder="Project overview..."></textarea>
+    </div>
+    <div class="mb-3" id="pi-autocomplete-container">
+      <label class="fw-medium">Principal Investigator (PI)</label>
+      <input type="hidden" name="pi" id="pi-id-input" value="${defaultPiId}" />
+      <div class="input">
+        <input type="text" id="pi-search-input" class="form-control" autocomplete="off" placeholder="Search user by name or email..." value="${defaultPiName}" />
+        <span class="left"><i class="fa-solid fa-user-doctor"></i></span>
       </div>
-      <div class="mb-3">
-        <label class="fw-medium">Description</label>
-        <textarea name="description" class="form-control" rows="3" required placeholder="Project overview..."></textarea>
+      <small class="text-muted">Type to search and select any user as Principal Investigator.</small>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-6">
+        <label class="fw-medium">Start Date</label>
+        <input type="date" name="startDate" class="form-control" required />
       </div>
-      <div class="row g-3 mb-3">
-        <div class="col-6">
-          <label class="fw-medium">Start Date</label>
-          <input type="date" name="startDate" class="form-control" required />
-        </div>
-        <div class="col-6">
-          <label class="fw-medium">End Date</label>
-          <input type="date" name="endDate" class="form-control" required />
-        </div>
+      <div class="col-6">
+        <label class="fw-medium">End Date</label>
+        <input type="date" name="endDate" class="form-control" required />
       </div>
-      <div class="row g-3 mb-3">
-        <div class="col-6">
-          <label class="fw-medium">Budget (EGP)</label>
-          <input type="number" name="budget" class="form-control" min="0" required placeholder="500000" />
-        </div>
-        <div class="col-6">
-          <label class="fw-medium">Funding Source</label>
-          <input type="text" name="fundingSource" class="form-control" placeholder="Internal / Grant" />
-        </div>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-6">
+        <label class="fw-medium">Budget (EGP)</label>
+        <input type="number" name="budget" class="form-control" min="0" required placeholder="500000" />
       </div>
-      <div class="mb-3">
-        <label class="fw-medium">Initial Status</label>
-        <select name="status" class="form-select">
-          <option value="Planning" selected>Planning</option>
-          <option value="Active">Active</option>
-          <option value="On Hold">On Hold</option>
-          <option value="Completed">Completed</option>
-        </select>
+      <div class="col-6">
+        <label class="fw-medium">Funding Source</label>
+        <input type="text" name="fundingSource" class="form-control" placeholder="Internal / Grant" />
       </div>
-    </form>
+    </div>
+    <div class="mb-3">
+      <label class="fw-medium">Initial Status</label>
+      <select name="status" class="form-select">
+        <option value="Planning" selected>Planning</option>
+        <option value="Active">Active</option>
+        <option value="On Hold">On Hold</option>
+        <option value="Completed">Completed</option>
+        <option value="Cancelled">Cancelled</option>
+      </select>
+    </div>
   `;
 
   const modal = new Modal({
-    title: 'Create New Research Project',
-    content: formHtml,
-    size: 'modal-lg',
+    title: "Create New Research Project",
+    content: formEl,
+    size: "modal-lg",
     actions: [
-      { text: 'Cancel', class: 'btn-outline-secondary', onClick: (_, m) => m.close() },
+      { text: "Cancel", class: "btn-outline-secondary", onClick: (_, m) => m.close() },
       {
-        text: 'Save Project',
-        class: 'btn-secondary',
+        text: "Save Project",
+        class: "btn-secondary",
         onClick: async (_, m) => {
-          const form = document.getElementById('create-project-form');
-          const formData = new FormData(form);
+          const formData = new FormData(formEl);
           const payload = {};
           formData.forEach((val, key) => (payload[key] = val));
+          console.log(payload);
 
           if (!payload.title || !payload.description || !payload.startDate || !payload.endDate || !payload.budget) {
-            Toast.error('Please fill in all required fields.');
+            Toast.error("Please fill in all required fields.");
             return;
           }
 
           try {
             await projectService.createProject(payload);
-            Toast.success('Project created successfully!');
+            Toast.success("Project created successfully!");
             m.close();
             loadProjectsView();
           } catch (err) {
-            Toast.error(err.message || 'Failed to create project.');
+            Toast.error(err.message || "Failed to create project.");
           }
         },
       },
     ],
   });
+
+  // Attach PI live user autocomplete
+  setupUserAutocomplete({
+    searchInputEl: formEl.querySelector("#pi-search-input"),
+    hiddenInputEl: formEl.querySelector("#pi-id-input"),
+    containerEl: formEl.querySelector("#pi-autocomplete-container"),
+  });
 }
 
-function openAddMemberModal(projectId, callback) {
-  const formHtml = `
-    <form id="add-member-form">
-      <div class="mb-3">
-        <label class="fw-medium">User ID (MongoDB ObjectId of User)</label>
-        <input type="text" name="userId" class="form-control" required placeholder="603d2b78f1a23c4567890xyz" />
+/**
+ * Bug 1 & 2 fix — Edit Project modal with full Status dropdown + PI autocomplete
+ * @param {object} project - Full populated project object from the API
+ */
+function openEditProjectModal(project) {
+  const p = project;
+  const formEl = document.createElement("form");
+  formEl.id = "edit-project-form";
+
+  // Pre-fill PI display string
+  const currentPiId   = p.pi ? (p.pi._id || p.pi.id || "") : "";
+  const currentPiName = p.pi ? `${p.pi.name} (${p.pi.email})` : "";
+
+  // Build status options with current value pre-selected
+  const statusOpts = ["Planning", "Active", "On Hold", "Completed", "Cancelled"]
+    .map((s) => `<option value="${s}" ${p.status === s ? "selected" : ""}>${s}</option>`)
+    .join("");
+
+  formEl.innerHTML = `
+    <div class="mb-3">
+      <label class="fw-medium">Project Title</label>
+      <input type="text" name="title" class="form-control" required value="${p.title}" />
+    </div>
+    <div class="mb-3">
+      <label class="fw-medium">Description</label>
+      <textarea name="description" class="form-control" rows="3" required>${p.description}</textarea>
+    </div>
+    <div class="mb-3" id="edit-pi-autocomplete-container">
+      <label class="fw-medium">Principal Investigator (PI)</label>
+      <input type="hidden" name="pi" id="edit-pi-id-input" value="${currentPiId}" />
+      <div class="input">
+        <input type="text" id="edit-pi-search-input" class="form-control" autocomplete="off"
+               placeholder="Search user by name or email..." value="${currentPiName}" />
+        <span class="left"><i class="fa-solid fa-user-doctor"></i></span>
       </div>
-      <div class="mb-3">
-        <label class="fw-medium">Project Role</label>
-        <select name="role" class="form-select">
-          <option value="Researcher" selected>Researcher</option>
-          <option value="Lead">Lead</option>
-          <option value="Advisor">Advisor</option>
-          <option value="Contributor">Contributor</option>
-        </select>
+      <small class="text-muted">Type to search and select a user as Principal Investigator.</small>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-6">
+        <label class="fw-medium">Start Date</label>
+        <input type="date" name="startDate" class="form-control" required value="${p.startDate ? p.startDate.substring(0,10) : ""}" />
       </div>
-    </form>
+      <div class="col-6">
+        <label class="fw-medium">End Date</label>
+        <input type="date" name="endDate" class="form-control" required value="${p.endDate ? p.endDate.substring(0,10) : ""}" />
+      </div>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-6">
+        <label class="fw-medium">Budget (EGP)</label>
+        <input type="number" name="budget" class="form-control" min="0" required value="${p.budget}" />
+      </div>
+      <div class="col-6">
+        <label class="fw-medium">Funding Source</label>
+        <input type="text" name="fundingSource" class="form-control" value="${p.fundingSource || ""}" />
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="fw-medium">Status</label>
+      <select name="status" class="form-select">
+        ${statusOpts}
+      </select>
+    </div>
   `;
 
-  new Modal({
-    title: 'Assign Team Member',
-    content: formHtml,
+  const modal = new Modal({
+    title: `Edit: ${p.title}`,
+    content: formEl,
+    size: "modal-lg",
     actions: [
-      { text: 'Cancel', class: 'btn-outline-secondary', onClick: (_, m) => m.close() },
+      { text: "Cancel", class: "btn-outline-secondary", onClick: (_, m) => m.close() },
       {
-        text: 'Assign',
-        class: 'btn-secondary',
+        text: "Save Changes",
+        class: "btn-secondary",
         onClick: async (_, m) => {
-          const form = document.getElementById('add-member-form');
-          const formData = new FormData(form);
-          const payload = { userId: formData.get('userId'), role: formData.get('role') };
+          const formData = new FormData(formEl);
+          const payload = {};
+          formData.forEach((val, key) => (payload[key] = val));
+
+          if (!payload.title || !payload.description || !payload.startDate || !payload.endDate || !payload.budget) {
+            Toast.error("Please fill in all required fields.");
+            return;
+          }
+
+          // If the PI search was cleared or unchanged, retain the current PI ID
+          if (!payload.pi) payload.pi = currentPiId;
 
           try {
-            await projectService.addTeamMember(projectId, payload);
-            Toast.success('Team member assigned!');
+            await projectService.updateProject(p._id, payload);
+            Toast.success("Project updated successfully!");
             m.close();
-            if (callback) callback();
+            loadProjectsView();
           } catch (err) {
-            Toast.error(err.message || 'Failed to assign team member.');
+            Toast.error(err.message || "Failed to update project.");
           }
         },
       },
     ],
+  });
+
+  // Attach PI live user autocomplete (Bug 2 fix — uses body-appended dropdown)
+  setupUserAutocomplete({
+    searchInputEl: formEl.querySelector("#edit-pi-search-input"),
+    hiddenInputEl: formEl.querySelector("#edit-pi-id-input"),
+    containerEl:   formEl.querySelector("#edit-pi-autocomplete-container"),
+  });
+}
+
+function openAddMemberModal(projectId, callback) {
+  const formEl = document.createElement("form");
+  formEl.id = "add-member-form";
+  formEl.innerHTML = `
+    <div class="mb-3" id="member-autocomplete-container">
+      <label class="fw-medium">Search Team Member (Name or Email)</label>
+      <input type="hidden" name="userId" id="member-user-id-input" required />
+      <div class="input">
+        <input type="text" id="member-search-input" class="form-control" autocomplete="off" placeholder="Start typing user name or email..." required />
+        <span class="left"><i class="fa-solid fa-magnifying-glass"></i></span>
+      </div>
+      <small class="text-muted">Live search matching users as you type. Click a user to select.</small>
+    </div>
+    <div class="mb-3">
+      <label class="fw-medium">Project Role</label>
+      <select name="role" class="form-select">
+        <option value="Researcher" selected>Researcher</option>
+        <option value="Lead">Lead</option>
+        <option value="Advisor">Advisor</option>
+        <option value="Contributor">Contributor</option>
+      </select>
+    </div>
+  `;
+
+  const modal = new Modal({
+    title: "Assign Team Member",
+    content: formEl,
+    actions: [
+      { text: "Cancel", class: "btn-outline-secondary", onClick: (_, m) => m.close() },
+      {
+        text: "Assign",
+        class: "btn-secondary",
+        onClick: async (_, m) => {
+          const formData = new FormData(formEl);
+          const userId = formData.get("userId");
+          const role = formData.get("role");
+
+          if (!userId) {
+            Toast.error("Please search and select a user from the dropdown list.");
+            return;
+          }
+
+          try {
+            await projectService.addTeamMember(projectId, { userId, role });
+            Toast.success("Team member assigned!");
+            m.close();
+            if (callback) callback();
+          } catch (err) {
+            Toast.error(err.message || "Failed to assign team member.");
+          }
+        },
+      },
+    ],
+  });
+
+  // Attach Member live user autocomplete
+  setupUserAutocomplete({
+    searchInputEl: formEl.querySelector("#member-search-input"),
+    hiddenInputEl: formEl.querySelector("#member-user-id-input"),
+    containerEl: formEl.querySelector("#member-autocomplete-container"),
   });
 }
 
@@ -693,29 +886,29 @@ function openAddMilestoneModal(projectId, callback) {
   `;
 
   new Modal({
-    title: 'Add Project Milestone',
+    title: "Add Project Milestone",
     content: formHtml,
     actions: [
-      { text: 'Cancel', class: 'btn-outline-secondary', onClick: (_, m) => m.close() },
+      { text: "Cancel", class: "btn-outline-secondary", onClick: (_, m) => m.close() },
       {
-        text: 'Add Milestone',
-        class: 'btn-warning text-dark',
+        text: "Add Milestone",
+        class: "btn-warning text-dark",
         onClick: async (_, m) => {
-          const form = document.getElementById('add-milestone-form');
+          const form = document.getElementById("add-milestone-form");
           const formData = new FormData(form);
           const payload = {
-            title: formData.get('title'),
-            deadline: formData.get('deadline'),
-            status: formData.get('status'),
+            title: formData.get("title"),
+            deadline: formData.get("deadline"),
+            status: formData.get("status"),
           };
 
           try {
             await projectService.addMilestone(projectId, payload);
-            Toast.success('Milestone added!');
+            Toast.success("Milestone added!");
             m.close();
             if (callback) callback();
           } catch (err) {
-            Toast.error(err.message || 'Failed to add milestone.');
+            Toast.error(err.message || "Failed to add milestone.");
           }
         },
       },
@@ -736,9 +929,9 @@ async function loadExpensesView() {
     }
 
     // Fetch expense records
-    const project = document.getElementById('expense-project-filter')?.value || '';
-    const category = document.getElementById('expense-category-filter')?.value || '';
-    const status = document.getElementById('expense-status-filter')?.value || '';
+    const project = document.getElementById("expense-project-filter")?.value || "";
+    const category = document.getElementById("expense-category-filter")?.value || "";
+    const status = document.getElementById("expense-status-filter")?.value || "";
 
     const expensesRes = await expenseService.getExpenses({ project, category, status });
     if (expensesRes.success) {
@@ -746,34 +939,34 @@ async function loadExpensesView() {
     }
 
     // Attach listeners
-    const projFilter = document.getElementById('expense-project-filter');
-    const catFilter = document.getElementById('expense-category-filter');
-    const statFilter = document.getElementById('expense-status-filter');
-    const logExpBtn = document.getElementById('log-expense-btn');
+    const projFilter = document.getElementById("expense-project-filter");
+    const catFilter = document.getElementById("expense-category-filter");
+    const statFilter = document.getElementById("expense-status-filter");
+    const logExpBtn = document.getElementById("log-expense-btn");
 
     if (projFilter && !projFilter.dataset.hasListener) {
-      projFilter.dataset.hasListener = 'true';
-      projFilter.addEventListener('change', () => loadExpensesView());
+      projFilter.dataset.hasListener = "true";
+      projFilter.addEventListener("change", () => loadExpensesView());
     }
     if (catFilter && !catFilter.dataset.hasListener) {
-      catFilter.dataset.hasListener = 'true';
-      catFilter.addEventListener('change', () => loadExpensesView());
+      catFilter.dataset.hasListener = "true";
+      catFilter.addEventListener("change", () => loadExpensesView());
     }
     if (statFilter && !statFilter.dataset.hasListener) {
-      statFilter.dataset.hasListener = 'true';
-      statFilter.addEventListener('change', () => loadExpensesView());
+      statFilter.dataset.hasListener = "true";
+      statFilter.addEventListener("change", () => loadExpensesView());
     }
     if (logExpBtn && !logExpBtn.dataset.hasListener) {
-      logExpBtn.dataset.hasListener = 'true';
-      logExpBtn.addEventListener('click', openLogExpenseModal);
+      logExpBtn.dataset.hasListener = "true";
+      logExpBtn.addEventListener("click", openLogExpenseModal);
     }
   } catch (err) {
-    Toast.error('Failed to load expense logs.');
+    Toast.error("Failed to load expense logs.");
   }
 }
 
 function renderBudgetSummaryCards(summaries) {
-  const container = document.getElementById('budget-summary-items');
+  const container = document.getElementById("budget-summary-items");
   if (!container) return;
 
   if (summaries.length === 0) {
@@ -781,7 +974,10 @@ function renderBudgetSummaryCards(summaries) {
     return;
   }
 
-  container.innerHTML = summaries.slice(0, 4).map((s) => `
+  container.innerHTML = summaries
+    .slice(0, 4)
+    .map(
+      (s) => `
     <div class="col-12 col-md-6 col-xl-3">
       <div class="bg-black bg-opacity-30 p-3 rounded-3 border border-secondary border-opacity-25">
         <small class="text-info fw-semibold text-truncate d-block">${s.projectTitle}</small>
@@ -794,15 +990,17 @@ function renderBudgetSummaryCards(summaries) {
         </div>
       </div>
     </div>
-  `).join('');
+  `,
+    )
+    .join("");
 }
 
 function populateProjectFilterOptions(summaries) {
-  const filter = document.getElementById('expense-project-filter');
+  const filter = document.getElementById("expense-project-filter");
   if (!filter || filter.children.length > 1) return;
 
   summaries.forEach((s) => {
-    const opt = document.createElement('option');
+    const opt = document.createElement("option");
     opt.value = s.projectId;
     opt.textContent = s.projectTitle;
     filter.appendChild(opt);
@@ -810,7 +1008,7 @@ function populateProjectFilterOptions(summaries) {
 }
 
 function renderExpensesTable(expenses) {
-  const tbody = document.getElementById('expenses-table-body');
+  const tbody = document.getElementById("expenses-table-body");
   if (!tbody) return;
 
   if (expenses.length === 0) {
@@ -818,63 +1016,69 @@ function renderExpensesTable(expenses) {
     return;
   }
 
-  const isManagerOrAdmin = userRole === 'Admin' || userRole === 'Manager';
+  const isManagerOrAdmin = userRole === "Admin" || userRole === "Manager";
 
-  tbody.innerHTML = expenses.map((e) => {
-    const statusBadge = `badge-${e.status ? e.status.toLowerCase() : 'pending'}`;
-    const receiptLink = e.receiptUrl
-      ? `<a href="http://localhost:5000${e.receiptUrl}" target="_blank" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-paperclip me-1"></i>Receipt</a>`
-      : '<span class="text-muted small">None</span>';
+  tbody.innerHTML = expenses
+    .map((e) => {
+      const statusBadge = `badge-${e.status ? e.status.toLowerCase() : "pending"}`;
+      const receiptLink = e.receiptUrl
+        ? `<a href="http://localhost:5000${e.receiptUrl}" target="_blank" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-paperclip me-1"></i>Receipt</a>`
+        : '<span class="text-muted small">None</span>';
 
-    return `
+      return `
       <tr>
         <td>${new Date(e.date).toLocaleDateString()}</td>
-        <td><strong class="text-light">${e.project ? e.project.title : 'Project'}</strong></td>
+        <td><strong class="text-light">${e.project ? e.project.title : "Project"}</strong></td>
         <td><span class="badge bg-secondary">${e.category}</span></td>
-        <td class="text-truncate" style="max-width: 200px;">${e.description || '-'}</td>
+        <td class="text-truncate" style="max-width: 200px;">${e.description || "-"}</td>
         <td class="fw-bold text-success">${e.amount.toLocaleString()} EGP</td>
         <td>${receiptLink}</td>
         <td><span class="badge ${statusBadge}">${e.status}</span></td>
-        <td><small class="text-secondary">${e.createdBy ? e.createdBy.name : 'User'}</small></td>
+        <td><small class="text-secondary">${e.createdBy ? e.createdBy.name : "User"}</small></td>
         <td class="text-end">
-          ${isManagerOrAdmin && e.status === 'Pending' ? `
+          ${
+            isManagerOrAdmin && e.status === "Pending"
+              ? `
             <button class="btn btn-outline-success btn-sm me-1 approve-exp-btn" data-id="${e._id}">Approve</button>
             <button class="btn btn-outline-danger btn-sm me-1 reject-exp-btn" data-id="${e._id}">Reject</button>
-          ` : ''}
-          ${userRole === 'Admin' || userRole === 'Manager' ? `<button class="btn btn-outline-danger btn-sm delete-exp-btn" data-id="${e._id}"><i class="fa-solid fa-trash"></i></button>` : ''}
+          `
+              : ""
+          }
+          ${userRole === "Admin" || userRole === "Manager" ? `<button class="btn btn-outline-danger btn-sm delete-exp-btn" data-id="${e._id}"><i class="fa-solid fa-trash"></i></button>` : ""}
         </td>
       </tr>
     `;
-  }).join('');
+    })
+    .join("");
 
   // Status Action Handlers
-  tbody.querySelectorAll('.approve-exp-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      await expenseService.updateExpense(id, { status: 'Approved' });
-      Toast.success('Expense approved!');
+  tbody.querySelectorAll(".approve-exp-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-id");
+      await expenseService.updateExpense(id, { status: "Approved" });
+      Toast.success("Expense approved!");
       loadExpensesView();
     });
   });
 
-  tbody.querySelectorAll('.reject-exp-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      await expenseService.updateExpense(id, { status: 'Rejected' });
-      Toast.warning('Expense rejected.');
+  tbody.querySelectorAll(".reject-exp-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-id");
+      await expenseService.updateExpense(id, { status: "Rejected" });
+      Toast.warning("Expense rejected.");
       loadExpensesView();
     });
   });
 
-  tbody.querySelectorAll('.delete-exp-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
+  tbody.querySelectorAll(".delete-exp-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-id");
       Modal.confirm({
-        title: 'Delete Expense Log',
-        message: 'Are you sure you want to delete this expense record?',
+        title: "Delete Expense Log",
+        message: "Are you sure you want to delete this expense record?",
         onConfirm: async () => {
           await expenseService.deleteExpense(id);
-          Toast.success('Expense deleted.');
+          Toast.success("Expense deleted.");
           loadExpensesView();
         },
       });
@@ -882,8 +1086,10 @@ function renderExpensesTable(expenses) {
   });
 }
 
-function openLogExpenseModal() {
-  const projectOptions = projectsCache.map((p) => `<option value="${p._id}">${p.title}</option>`).join('');
+async function openLogExpenseModal() {
+  // Bug 4 fix: refresh cache if empty so the project dropdown is always populated
+  if (projectsCache.length === 0) await loadProjectsCache();
+  const projectOptions = projectsCache.map((p) => `<option value="${p._id}">${p.title}</option>`).join("");
 
   const formHtml = `
     <form id="log-expense-form" enctype="multipart/form-data">
@@ -924,29 +1130,29 @@ function openLogExpenseModal() {
   `;
 
   new Modal({
-    title: 'Log New Expense',
+    title: "Log New Expense",
     content: formHtml,
     actions: [
-      { text: 'Cancel', class: 'btn-outline-secondary', onClick: (_, m) => m.close() },
+      { text: "Cancel", class: "btn-outline-secondary", onClick: (_, m) => m.close() },
       {
-        text: 'Submit Expense',
-        class: 'btn-secondary',
+        text: "Submit Expense",
+        class: "btn-secondary",
         onClick: async (_, m) => {
-          const form = document.getElementById('log-expense-form');
+          const form = document.getElementById("log-expense-form");
           const formData = new FormData(form);
 
-          if (!formData.get('project') || !formData.get('category') || !formData.get('amount')) {
-            Toast.error('Project, category, and amount are required.');
+          if (!formData.get("project") || !formData.get("category") || !formData.get("amount")) {
+            Toast.error("Project, category, and amount are required.");
             return;
           }
 
           try {
             await expenseService.createExpense(formData);
-            Toast.success('Expense logged successfully!');
+            Toast.success("Expense logged successfully!");
             m.close();
             loadExpensesView();
           } catch (err) {
-            Toast.error(err.message || 'Failed to log expense.');
+            Toast.error(err.message || "Failed to log expense.");
           }
         },
       },
@@ -958,10 +1164,10 @@ function openLogExpenseModal() {
 // VIEW 4: DOCUMENT MANAGEMENT
 // ----------------------------------------------------
 async function loadDocumentsView() {
-  const keyword = document.getElementById('doc-search-input')?.value || '';
-  const category = document.getElementById('doc-category-filter')?.value || '';
-  const startDate = document.getElementById('doc-start-date')?.value || '';
-  const endDate = document.getElementById('doc-end-date')?.value || '';
+  const keyword = document.getElementById("doc-search-input")?.value || "";
+  const category = document.getElementById("doc-category-filter")?.value || "";
+  const startDate = document.getElementById("doc-start-date")?.value || "";
+  const endDate = document.getElementById("doc-end-date")?.value || "";
 
   try {
     const res = await documentService.getDocuments({ keyword, category, startDate, endDate });
@@ -970,39 +1176,39 @@ async function loadDocumentsView() {
     }
 
     // Attach listeners
-    const searchInput = document.getElementById('doc-search-input');
-    const catFilter = document.getElementById('doc-category-filter');
-    const startInput = document.getElementById('doc-start-date');
-    const endInput = document.getElementById('doc-end-date');
-    const uploadBtn = document.getElementById('upload-doc-btn');
+    const searchInput = document.getElementById("doc-search-input");
+    const catFilter = document.getElementById("doc-category-filter");
+    const startInput = document.getElementById("doc-start-date");
+    const endInput = document.getElementById("doc-end-date");
+    const uploadBtn = document.getElementById("upload-doc-btn");
 
     if (searchInput && !searchInput.dataset.hasListener) {
-      searchInput.dataset.hasListener = 'true';
-      searchInput.addEventListener('input', () => loadDocumentsView());
+      searchInput.dataset.hasListener = "true";
+      searchInput.addEventListener("input", () => loadDocumentsView());
     }
     if (catFilter && !catFilter.dataset.hasListener) {
-      catFilter.dataset.hasListener = 'true';
-      catFilter.addEventListener('change', () => loadDocumentsView());
+      catFilter.dataset.hasListener = "true";
+      catFilter.addEventListener("change", () => loadDocumentsView());
     }
     if (startInput && !startInput.dataset.hasListener) {
-      startInput.dataset.hasListener = 'true';
-      startInput.addEventListener('change', () => loadDocumentsView());
+      startInput.dataset.hasListener = "true";
+      startInput.addEventListener("change", () => loadDocumentsView());
     }
     if (endInput && !endInput.dataset.hasListener) {
-      endInput.dataset.hasListener = 'true';
-      endInput.addEventListener('change', () => loadDocumentsView());
+      endInput.dataset.hasListener = "true";
+      endInput.addEventListener("change", () => loadDocumentsView());
     }
     if (uploadBtn && !uploadBtn.dataset.hasListener) {
-      uploadBtn.dataset.hasListener = 'true';
-      uploadBtn.addEventListener('click', openUploadDocModal);
+      uploadBtn.dataset.hasListener = "true";
+      uploadBtn.addEventListener("click", openUploadDocModal);
     }
   } catch (err) {
-    Toast.error('Failed to load documents.');
+    Toast.error("Failed to load documents.");
   }
 }
 
 function renderDocumentsTable(documents) {
-  const tbody = document.getElementById('documents-table-body');
+  const tbody = document.getElementById("documents-table-body");
   if (!tbody) return;
 
   if (documents.length === 0) {
@@ -1010,24 +1216,25 @@ function renderDocumentsTable(documents) {
     return;
   }
 
-  const isManagerOrAdmin = userRole === 'Admin' || userRole === 'Manager';
+  const isManagerOrAdmin = userRole === "Admin" || userRole === "Manager";
 
-  tbody.innerHTML = documents.map((d) => {
-    const sizeKb = d.fileSize ? (d.fileSize / 1024).toFixed(1) + ' KB' : 'N/A';
-    const activeVersion = `v${d.versionNumber || 1}`;
+  tbody.innerHTML = documents
+    .map((d) => {
+      const sizeKb = d.fileSize ? (d.fileSize / 1024).toFixed(1) + " KB" : "N/A";
+      const activeVersion = `v${d.versionNumber || 1}`;
 
-    return `
+      return `
       <tr>
         <td>
           <a href="http://localhost:5000${d.filePath}" target="_blank" class="fw-semibold text-info text-decoration-none">
             <i class="fa-solid fa-file-pdf me-2"></i>${d.fileName}
           </a>
         </td>
-        <td><span class="text-light">${d.project ? d.project.title : 'Project'}</span></td>
+        <td><span class="text-light">${d.project ? d.project.title : "Project"}</span></td>
         <td><span class="badge bg-secondary">${d.category}</span></td>
         <td><span class="badge bg-primary">${activeVersion}</span></td>
         <td><small class="text-secondary">${sizeKb}</small></td>
-        <td><small class="text-secondary">${d.uploadedBy ? d.uploadedBy.name : 'User'}</small></td>
+        <td><small class="text-secondary">${d.uploadedBy ? d.uploadedBy.name : "User"}</small></td>
         <td><small class="text-secondary">${new Date(d.createdAt).toLocaleDateString()}</small></td>
         <td class="text-end">
           <button class="btn btn-outline-info btn-sm me-1 upload-new-ver-btn" data-id="${d._id}">
@@ -1036,36 +1243,37 @@ function renderDocumentsTable(documents) {
           <button class="btn btn-outline-light btn-sm me-1 view-ver-history-btn" data-id="${d._id}">
             <i class="fa-solid fa-clock-rotate-left me-1"></i>History
           </button>
-          ${isManagerOrAdmin ? `<button class="btn btn-outline-danger btn-sm delete-doc-btn" data-id="${d._id}"><i class="fa-solid fa-trash"></i></button>` : ''}
+          ${isManagerOrAdmin ? `<button class="btn btn-outline-danger btn-sm delete-doc-btn" data-id="${d._id}"><i class="fa-solid fa-trash"></i></button>` : ""}
         </td>
       </tr>
     `;
-  }).join('');
+    })
+    .join("");
 
   // Actions
-  tbody.querySelectorAll('.upload-new-ver-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-id');
+  tbody.querySelectorAll(".upload-new-ver-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
       openUploadVersionModal(id);
     });
   });
 
-  tbody.querySelectorAll('.view-ver-history-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-id');
+  tbody.querySelectorAll(".view-ver-history-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
       openVersionHistoryModal(id);
     });
   });
 
-  tbody.querySelectorAll('.delete-doc-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
+  tbody.querySelectorAll(".delete-doc-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-id");
       Modal.confirm({
-        title: 'Delete Document',
-        message: 'Are you sure you want to delete this document and all historical versions?',
+        title: "Delete Document",
+        message: "Are you sure you want to delete this document and all historical versions?",
         onConfirm: async () => {
           await documentService.deleteDocument(id);
-          Toast.success('Document deleted.');
+          Toast.success("Document deleted.");
           loadDocumentsView();
         },
       });
@@ -1073,8 +1281,10 @@ function renderDocumentsTable(documents) {
   });
 }
 
-function openUploadDocModal() {
-  const projectOptions = projectsCache.map((p) => `<option value="${p._id}">${p.title}</option>`).join('');
+async function openUploadDocModal() {
+  // Bug 4 fix: refresh cache if empty so the project dropdown is always populated
+  if (projectsCache.length === 0) await loadProjectsCache();
+  const projectOptions = projectsCache.map((p) => `<option value="${p._id}">${p.title}</option>`).join("");
 
   const formHtml = `
     <form id="upload-doc-form" enctype="multipart/form-data">
@@ -1105,29 +1315,29 @@ function openUploadDocModal() {
   `;
 
   new Modal({
-    title: 'Upload Document (Version 1)',
+    title: "Upload Document (Version 1)",
     content: formHtml,
     actions: [
-      { text: 'Cancel', class: 'btn-outline-secondary', onClick: (_, m) => m.close() },
+      { text: "Cancel", class: "btn-outline-secondary", onClick: (_, m) => m.close() },
       {
-        text: 'Upload File',
-        class: 'btn-secondary',
+        text: "Upload File",
+        class: "btn-secondary",
         onClick: async (_, m) => {
-          const form = document.getElementById('upload-doc-form');
+          const form = document.getElementById("upload-doc-form");
           const formData = new FormData(form);
 
-          if (!formData.get('project') || !formData.get('file')) {
-            Toast.error('Project and file attachment are required.');
+          if (!formData.get("project") || !formData.get("file")) {
+            Toast.error("Project and file attachment are required.");
             return;
           }
 
           try {
             await documentService.uploadDocument(formData);
-            Toast.success('Document uploaded successfully!');
+            Toast.success("Document uploaded successfully!");
             m.close();
             loadDocumentsView();
           } catch (err) {
-            Toast.error(err.message || 'Failed to upload document.');
+            Toast.error(err.message || "Failed to upload document.");
           }
         },
       },
@@ -1146,29 +1356,29 @@ function openUploadVersionModal(documentId) {
   `;
 
   new Modal({
-    title: 'Upload New Revision / Version',
+    title: "Upload New Revision / Version",
     content: formHtml,
     actions: [
-      { text: 'Cancel', class: 'btn-outline-secondary', onClick: (_, m) => m.close() },
+      { text: "Cancel", class: "btn-outline-secondary", onClick: (_, m) => m.close() },
       {
-        text: 'Upload Revision',
-        class: 'btn-secondary',
+        text: "Upload Revision",
+        class: "btn-secondary",
         onClick: async (_, m) => {
-          const form = document.getElementById('upload-ver-form');
+          const form = document.getElementById("upload-ver-form");
           const formData = new FormData(form);
 
-          if (!formData.get('file')) {
-            Toast.error('Please select a file.');
+          if (!formData.get("file")) {
+            Toast.error("Please select a file.");
             return;
           }
 
           try {
             await documentService.uploadVersion(documentId, formData);
-            Toast.success('Document updated to new version!');
+            Toast.success("Document updated to new version!");
             m.close();
             loadDocumentsView();
           } catch (err) {
-            Toast.error(err.message || 'Failed to upload version.');
+            Toast.error(err.message || "Failed to upload version.");
           }
         },
       },
@@ -1184,29 +1394,38 @@ async function openVersionHistoryModal(documentId) {
     const d = res.document;
     const history = d.versionHistory || [];
 
-    const historyHtml = history.length > 0
-      ? history.map((v) => `
+    const historyHtml =
+      history.length > 0
+        ? history
+            .map(
+              (v) => `
           <div class="d-flex align-items-center justify-content-between py-3 border-bottom border-secondary border-opacity-25">
             <div>
-              <div class="fw-bold text-light">Version ${v.versionNumber} ${v.versionNumber === d.versionNumber ? '<span class="badge bg-success ms-2">Active</span>' : ''}</div>
+              <div class="fw-bold text-light">Version ${v.versionNumber} ${v.versionNumber === d.versionNumber ? '<span class="badge bg-success ms-2">Active</span>' : ""}</div>
               <small class="text-secondary">${v.fileName || d.fileName} | Uploaded: ${new Date(v.uploadedAt).toLocaleString()}</small>
             </div>
             <div>
-              ${v.versionNumber !== d.versionNumber ? `
+              ${
+                v.versionNumber !== d.versionNumber
+                  ? `
                 <button class="btn btn-outline-warning btn-sm revert-ver-btn" data-ver="${v.versionNumber}">
                   <i class="fa-solid fa-rotate-left me-1"></i>Revert to v${v.versionNumber}
                 </button>
-              ` : '<span class="text-muted small">Active Version</span>'}
+              `
+                  : '<span class="text-secondary small">Active Version</span>'
+              }
             </div>
           </div>
-        `).join('')
-      : '<p class="text-muted">No version history available.</p>';
+        `,
+            )
+            .join("")
+        : '<p class="text-muted">No version history available.</p>';
 
-    const modalContent = document.createElement('div');
+    const modalContent = document.createElement("div");
     modalContent.innerHTML = `
       <div class="mb-3">
         <h6 class="fw-semibold text-info mb-1">${d.fileName}</h6>
-        <small class="text-secondary">Project: ${d.project ? d.project.title : 'N/A'}</small>
+        <small class="text-secondary">Project: ${d.project ? d.project.title : "N/A"}</small>
       </div>
       <hr class="border-secondary border-opacity-25" />
       <div>
@@ -1215,27 +1434,27 @@ async function openVersionHistoryModal(documentId) {
     `;
 
     const modal = new Modal({
-      title: 'Document Revision History',
+      title: "Document Revision History",
       content: modalContent,
-      size: 'modal-lg',
+      size: "modal-lg",
     });
 
     // Revert button handlers
-    modalContent.querySelectorAll('.revert-ver-btn').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const targetVer = btn.getAttribute('data-ver');
+    modalContent.querySelectorAll(".revert-ver-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const targetVer = btn.getAttribute("data-ver");
         try {
           await documentService.revertVersion(d._id, targetVer);
           Toast.success(`Document reverted to Version ${targetVer}!`);
           modal.close();
           loadDocumentsView();
         } catch (err) {
-          Toast.error(err.message || 'Failed to revert version.');
+          Toast.error(err.message || "Failed to revert version.");
         }
       });
     });
   } catch (err) {
-    Toast.error('Failed to load version history.');
+    Toast.error("Failed to load version history.");
   }
 }
 
@@ -1243,9 +1462,9 @@ async function openVersionHistoryModal(documentId) {
 // VIEW 5: RESEARCH OUTPUTS & PUBLICATIONS
 // ----------------------------------------------------
 async function loadPublicationsView() {
-  const search = document.getElementById('pub-search-input')?.value || '';
-  const outputType = document.getElementById('pub-type-filter')?.value || '';
-  const status = document.getElementById('pub-status-filter')?.value || '';
+  const search = document.getElementById("pub-search-input")?.value || "";
+  const outputType = document.getElementById("pub-type-filter")?.value || "";
+  const status = document.getElementById("pub-status-filter")?.value || "";
 
   try {
     const res = await publicationService.getPublications({ search, outputType, status });
@@ -1254,39 +1473,39 @@ async function loadPublicationsView() {
     }
 
     // Attach listeners
-    const searchInput = document.getElementById('pub-search-input');
-    const typeFilter = document.getElementById('pub-type-filter');
-    const statusFilter = document.getElementById('pub-status-filter');
-    const registerBtn = document.getElementById('register-pub-btn');
-    const exportBtn = document.getElementById('export-csv-btn');
+    const searchInput = document.getElementById("pub-search-input");
+    const typeFilter = document.getElementById("pub-type-filter");
+    const statusFilter = document.getElementById("pub-status-filter");
+    const registerBtn = document.getElementById("register-pub-btn");
+    const exportBtn = document.getElementById("export-csv-btn");
 
     if (searchInput && !searchInput.dataset.hasListener) {
-      searchInput.dataset.hasListener = 'true';
-      searchInput.addEventListener('input', () => loadPublicationsView());
+      searchInput.dataset.hasListener = "true";
+      searchInput.addEventListener("input", () => loadPublicationsView());
     }
     if (typeFilter && !typeFilter.dataset.hasListener) {
-      typeFilter.dataset.hasListener = 'true';
-      typeFilter.addEventListener('change', () => loadPublicationsView());
+      typeFilter.dataset.hasListener = "true";
+      typeFilter.addEventListener("change", () => loadPublicationsView());
     }
     if (statusFilter && !statusFilter.dataset.hasListener) {
-      statusFilter.dataset.hasListener = 'true';
-      statusFilter.addEventListener('change', () => loadPublicationsView());
+      statusFilter.dataset.hasListener = "true";
+      statusFilter.addEventListener("change", () => loadPublicationsView());
     }
     if (registerBtn && !registerBtn.dataset.hasListener) {
-      registerBtn.dataset.hasListener = 'true';
-      registerBtn.addEventListener('click', openRegisterPublicationModal);
+      registerBtn.dataset.hasListener = "true";
+      registerBtn.addEventListener("click", openRegisterPublicationModal);
     }
     if (exportBtn && !exportBtn.dataset.hasListener) {
-      exportBtn.dataset.hasListener = 'true';
-      exportBtn.addEventListener('click', handleCSVExport);
+      exportBtn.dataset.hasListener = "true";
+      exportBtn.addEventListener("click", handleCSVExport);
     }
   } catch (err) {
-    Toast.error('Failed to load research outputs.');
+    Toast.error("Failed to load research outputs.");
   }
 }
 
 function renderPublicationsTable(publications) {
-  const tbody = document.getElementById('publications-table-body');
+  const tbody = document.getElementById("publications-table-body");
   if (!tbody) return;
 
   if (publications.length === 0) {
@@ -1294,41 +1513,43 @@ function renderPublicationsTable(publications) {
     return;
   }
 
-  const isManagerOrAdmin = userRole === 'Admin' || userRole === 'Manager';
+  const isManagerOrAdmin = userRole === "Admin" || userRole === "Manager";
 
-  tbody.innerHTML = publications.map((p) => {
-    const authorsStr = Array.isArray(p.authors) ? p.authors.join(', ') : p.authors || 'N/A';
-    const doi = p.externalIdentifiers ? p.externalIdentifiers.doi : '';
+  tbody.innerHTML = publications
+    .map((p) => {
+      const authorsStr = Array.isArray(p.authors) ? p.authors.join(", ") : p.authors || "N/A";
+      const doi = p.externalIdentifiers ? p.externalIdentifiers.doi : "";
 
-    return `
+      return `
       <tr>
         <td>
           <div class="fw-semibold text-light mb-1">${p.title}</div>
           <span class="badge bg-secondary">${p.outputType}</span>
         </td>
         <td><small class="text-secondary">${authorsStr}</small></td>
-        <td><small class="text-light">${p.project ? p.project.title : 'Project'}</small></td>
-        <td><small class="text-secondary">${p.journalOrPublisher || '-'}</small></td>
+        <td><small class="text-light">${p.project ? p.project.title : "Project"}</small></td>
+        <td><small class="text-secondary">${p.journalOrPublisher || "-"}</small></td>
         <td>
           ${doi ? `<a href="https://doi.org/${doi}" target="_blank" class="btn btn-outline-info btn-sm"><i class="fa-solid fa-link me-1"></i>DOI</a>` : '<span class="text-muted small">-</span>'}
         </td>
         <td><span class="badge bg-success">${p.status}</span></td>
         <td class="text-end">
-          ${isManagerOrAdmin ? `<button class="btn btn-outline-danger btn-sm delete-pub-btn" data-id="${p._id}"><i class="fa-solid fa-trash"></i></button>` : ''}
+          ${isManagerOrAdmin ? `<button class="btn btn-outline-danger btn-sm delete-pub-btn" data-id="${p._id}"><i class="fa-solid fa-trash"></i></button>` : ""}
         </td>
       </tr>
     `;
-  }).join('');
+    })
+    .join("");
 
-  tbody.querySelectorAll('.delete-pub-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
+  tbody.querySelectorAll(".delete-pub-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-id");
       Modal.confirm({
-        title: 'Delete Publication',
-        message: 'Are you sure you want to delete this research output?',
+        title: "Delete Publication",
+        message: "Are you sure you want to delete this research output?",
         onConfirm: async () => {
           await publicationService.deletePublication(id);
-          Toast.success('Publication deleted.');
+          Toast.success("Publication deleted.");
           loadPublicationsView();
         },
       });
@@ -1338,27 +1559,29 @@ function renderPublicationsTable(publications) {
 
 async function handleCSVExport() {
   try {
-    Toast.info('Preparing CSV export...');
+    Toast.info("Preparing CSV export...");
     const blob = await publicationService.exportCSV();
 
     // Trigger file download
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'research_outputs_export.csv';
+    a.download = "research_outputs_export.csv";
     document.body.appendChild(a);
     a.click();
     a.remove();
     window.URL.revokeObjectURL(url);
 
-    Toast.success('Export downloaded successfully!');
+    Toast.success("Export downloaded successfully!");
   } catch (err) {
-    Toast.error(err.message || 'Failed to export CSV.');
+    Toast.error(err.message || "Failed to export CSV.");
   }
 }
 
-function openRegisterPublicationModal() {
-  const projectOptions = projectsCache.map((p) => `<option value="${p._id}">${p.title}</option>`).join('');
+async function openRegisterPublicationModal() {
+  // Bug 4 fix: refresh cache if empty so the project dropdown is always populated
+  if (projectsCache.length === 0) await loadProjectsCache();
+  const projectOptions = projectsCache.map((p) => `<option value="${p._id}">${p.title}</option>`).join("");
 
   const formHtml = `
     <form id="register-pub-form">
@@ -1418,45 +1641,50 @@ function openRegisterPublicationModal() {
   `;
 
   new Modal({
-    title: 'Register Research Output',
+    title: "Register Research Output",
     content: formHtml,
-    size: 'modal-lg',
+    size: "modal-lg",
     actions: [
-      { text: 'Cancel', class: 'btn-outline-secondary', onClick: (_, m) => m.close() },
+      { text: "Cancel", class: "btn-outline-secondary", onClick: (_, m) => m.close() },
       {
-        text: 'Register Output',
-        class: 'btn-secondary',
+        text: "Register Output",
+        class: "btn-secondary",
         onClick: async (_, m) => {
-          const form = document.getElementById('register-pub-form');
+          const form = document.getElementById("register-pub-form");
           const formData = new FormData(form);
-          const authorsInput = formData.get('authors');
-          const authorsArray = authorsInput ? authorsInput.split(',').map((a) => a.trim()).filter(Boolean) : [];
+          const authorsInput = formData.get("authors");
+          const authorsArray = authorsInput
+            ? authorsInput
+                .split(",")
+                .map((a) => a.trim())
+                .filter(Boolean)
+            : [];
 
           const payload = {
-            project: formData.get('project'),
-            outputType: formData.get('outputType'),
-            status: formData.get('status'),
-            title: formData.get('title'),
+            project: formData.get("project"),
+            outputType: formData.get("outputType"),
+            status: formData.get("status"),
+            title: formData.get("title"),
             authors: authorsArray,
-            journalOrPublisher: formData.get('journalOrPublisher'),
-            publicationDate: formData.get('publicationDate') || undefined,
+            journalOrPublisher: formData.get("journalOrPublisher"),
+            publicationDate: formData.get("publicationDate") || undefined,
             externalIdentifiers: {
-              doi: formData.get('doi') || '',
+              doi: formData.get("doi") || "",
             },
           };
 
           if (!payload.project || !payload.title || !payload.outputType) {
-            Toast.error('Project, output type, and title are required.');
+            Toast.error("Project, output type, and title are required.");
             return;
           }
 
           try {
             await publicationService.createPublication(payload);
-            Toast.success('Research output registered successfully!');
+            Toast.success("Research output registered successfully!");
             m.close();
             loadPublicationsView();
           } catch (err) {
-            Toast.error(err.message || 'Failed to register output.');
+            Toast.error(err.message || "Failed to register output.");
           }
         },
       },
@@ -1468,13 +1696,13 @@ function openRegisterPublicationModal() {
 // VIEW 6: USER PROFILE
 // ----------------------------------------------------
 async function loadProfileView() {
-  document.getElementById('profile-name').textContent = currentUser.name;
-  document.getElementById('profile-email').textContent = currentUser.email;
-  document.getElementById('profile-role-badge').textContent = userRole;
-  document.getElementById('profile-avatar-initials').textContent = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById("profile-name").textContent = currentUser.name;
+  document.getElementById("profile-email").textContent = currentUser.email;
+  document.getElementById("profile-role-badge").textContent = userRole;
+  document.getElementById("profile-avatar-initials").textContent = currentUser.name.charAt(0).toUpperCase();
 
   if (currentUser.createdAt) {
-    document.getElementById('profile-created-at').textContent = new Date(currentUser.createdAt).toLocaleDateString();
+    document.getElementById("profile-created-at").textContent = new Date(currentUser.createdAt).toLocaleDateString();
   }
 
   // Load assigned projects
@@ -1482,24 +1710,28 @@ async function loadProfileView() {
     const res = await projectService.getProjects();
     if (res.success) {
       const projects = res.projects || [];
-      const assignedContainer = document.getElementById('profile-assigned-projects');
+      const assignedContainer = document.getElementById("profile-assigned-projects");
       if (assignedContainer) {
         if (projects.length === 0) {
           assignedContainer.innerHTML = '<p class="text-muted m-0">No assigned projects.</p>';
         } else {
-          assignedContainer.innerHTML = projects.map((p) => `
+          assignedContainer.innerHTML = projects
+            .map(
+              (p) => `
             <div class="d-flex align-items-center justify-content-between py-2 border-bottom border-secondary border-opacity-25">
               <div>
                 <strong class="text-light">${p.title}</strong>
                 <small class="text-secondary d-block">${p.status} | Budget: ${p.budget.toLocaleString()} EGP</small>
               </div>
-              <span class="badge bg-secondary">${p.pi && p.pi._id === currentUser.id ? 'Principal Investigator' : 'Team Member'}</span>
+              <span class="badge bg-secondary">${p.pi && p.pi._id === currentUser.id ? "Principal Investigator" : "Team Member"}</span>
             </div>
-          `).join('');
+          `,
+            )
+            .join("");
         }
       }
     }
   } catch (err) {
-    console.error('Failed to load profile projects:', err);
+    console.error("Failed to load profile projects:", err);
   }
 }

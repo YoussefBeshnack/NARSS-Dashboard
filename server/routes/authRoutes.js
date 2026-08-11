@@ -7,8 +7,10 @@ const {
   forgotPassword,
   resetPassword,
   getMe,
+  getUsers,
+  updateUserRole,
 } = require('../controllers/authController');
-const { protect } = require('../middlewares/authMiddleware');
+const { protect, authorize } = require('../middlewares/authMiddleware');
 
 // Public routes
 router.post('/register', registerUser);
@@ -20,5 +22,7 @@ router.post('/reset-password', resetPassword);
 
 // Protected routes
 router.get('/me', protect, getMe);
+router.get('/users', protect, getUsers);
+router.put('/users/:id', protect, authorize('Admin'), updateUserRole);
 
 module.exports = router;

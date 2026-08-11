@@ -40,6 +40,31 @@ export class AuthService {
   async getMe() {
     return apiClient.get("/auth/me");
   }
+
+  /**
+   * Search registered users by name or email (max 20 results)
+   * @param {string} search - Query string
+   */
+  async searchUsers(search = "") {
+    const endpoint = search ? `/auth/users?search=${encodeURIComponent(search)}` : "/auth/users";
+    return apiClient.get(endpoint);
+  }
+
+  /**
+   * Fetch ALL registered users (for Admin User Management view)
+   */
+  async getAllUsers() {
+    return apiClient.get("/auth/users?limit=all");
+  }
+
+  /**
+   * Update a user's system role (Admin only)
+   * @param {string} userId - Target user ID
+   * @param {string} role   - New role string
+   */
+  async updateUserRole(userId, role) {
+    return apiClient.put(`/auth/users/${userId}`, { role });
+  }
 }
 
 export const authService = new AuthService();

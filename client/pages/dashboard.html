@@ -48,13 +48,16 @@
         </nav>
 
         <!-- Sidebar Footer / Active User Badge -->
-        <div class="p-3 border-top border-secondary border-opacity-25 bg-black bg-opacity-20">
+        <div class="p-3 border-top border-secondary border-opacity-25">
           <div class="d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
-              <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 38px; height: 38px;" id="user-avatar-initials">
+              <div
+                class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold"
+                style="width: 38px; height: 38px"
+                id="user-avatar-initials">
                 U
               </div>
-              <div class="overflow-hidden" style="max-width: 130px;">
+              <div class="overflow-hidden" style="max-width: 130px">
                 <div class="text-truncate fw-semibold text-light" id="sidebar-user-name">User Name</div>
                 <small class="badge bg-secondary" id="sidebar-user-role">Role</small>
               </div>
@@ -87,7 +90,6 @@
 
         <!-- View Containers Area -->
         <main class="p-4 flex-grow-1 overflow-auto hide-scrollbar">
-          
           <!-- VIEW 1: DASHBOARD ANALYTICS -->
           <section id="view-dashboard" class="view-panel">
             <!-- KPI Cards Row -->
@@ -139,7 +141,7 @@
               <div class="col-12 col-lg-8">
                 <div class="glass-card p-4">
                   <h6 class="fw-bold text-light mb-3">Project Budget vs. Actual Spent</h6>
-                  <div style="height: 320px; position: relative;">
+                  <div style="height: 320px; position: relative">
                     <canvas id="chart-budget-spent"></canvas>
                   </div>
                 </div>
@@ -147,7 +149,7 @@
               <div class="col-12 col-lg-4">
                 <div class="glass-card p-4">
                   <h6 class="fw-bold text-light mb-3">Milestone Progress Breakdown</h6>
-                  <div style="height: 320px; position: relative;">
+                  <div style="height: 320px; position: relative">
                     <canvas id="chart-milestones"></canvas>
                   </div>
                 </div>
@@ -160,8 +162,12 @@
             <!-- Filter Bar -->
             <div class="glass-card p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
               <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
-                <div class="input flex-grow-1" style="max-width: 320px;">
-                  <input type="text" id="project-search-input" class="form-control" placeholder="Search project title..." />
+                <div class="input flex-grow-1" style="max-width: 320px">
+                  <input
+                    type="text"
+                    id="project-search-input"
+                    class="form-control"
+                    placeholder="Search project title..." />
                   <span class="left"><i class="fa-solid fa-magnifying-glass"></i></span>
                 </div>
                 <select id="project-status-filter" class="form-select w-auto">
@@ -188,7 +194,9 @@
           <section id="view-expenses" class="view-panel d-none">
             <!-- Project Budget Summary Overview Card -->
             <div class="glass-card p-4 mb-4" id="expense-budget-summary-card">
-              <h6 class="fw-bold text-light mb-3"><i class="fa-solid fa-chart-line text-info me-2"></i>Project Budget Summary Breakdown</h6>
+              <h6 class="fw-bold text-light mb-3">
+                <i class="fa-solid fa-chart-line text-info me-2"></i>Project Budget Summary Breakdown
+              </h6>
               <div class="row g-3" id="budget-summary-items">
                 <!-- Dynamically populated summary cards -->
               </div>
@@ -252,7 +260,7 @@
             <!-- Document Filters Bar -->
             <div class="glass-card p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
               <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
-                <div class="input flex-grow-1" style="max-width: 260px;">
+                <div class="input flex-grow-1" style="max-width: 260px">
                   <input type="text" id="doc-search-input" class="form-control" placeholder="Search filename..." />
                   <span class="left"><i class="fa-solid fa-magnifying-glass"></i></span>
                 </div>
@@ -303,8 +311,12 @@
             <!-- Publication Filters Bar -->
             <div class="glass-card p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
               <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
-                <div class="input flex-grow-1" style="max-width: 280px;">
-                  <input type="text" id="pub-search-input" class="form-control" placeholder="Search title, author, publisher..." />
+                <div class="input flex-grow-1" style="max-width: 280px">
+                  <input
+                    type="text"
+                    id="pub-search-input"
+                    class="form-control"
+                    placeholder="Search title, author, publisher..." />
                   <span class="left"><i class="fa-solid fa-magnifying-glass"></i></span>
                 </div>
                 <select id="pub-type-filter" class="form-select w-auto">
@@ -363,7 +375,10 @@
             <div class="row g-4">
               <div class="col-12 col-md-4">
                 <div class="glass-card p-4 text-center">
-                  <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold mx-auto mb-3" style="width: 80px; height: 80px; font-size: 2rem;" id="profile-avatar-initials">
+                  <div
+                    class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold mx-auto mb-3"
+                    style="width: 80px; height: 80px; font-size: 2rem"
+                    id="profile-avatar-initials">
                     U
                   </div>
                   <h5 class="fw-bold text-light m-0" id="profile-name">User Name</h5>
@@ -378,7 +393,9 @@
               </div>
               <div class="col-12 col-md-8">
                 <div class="glass-card p-4 mb-4">
-                  <h6 class="fw-bold text-light mb-3"><i class="fa-solid fa-diagram-project text-info me-2"></i>My Assigned Research Projects</h6>
+                  <h6 class="fw-bold text-light mb-3">
+                    <i class="fa-solid fa-diagram-project text-info me-2"></i>My Assigned Research Projects
+                  </h6>
                   <div id="profile-assigned-projects">
                     <p class="text-muted m-0">Loading assigned projects...</p>
                   </div>
@@ -390,9 +407,13 @@
           <!-- VIEW 7: SYSTEM SETTINGS & ROLE CONTROL -->
           <section id="view-settings" class="view-panel d-none">
             <div class="glass-card p-4 mb-4">
-              <h5 class="fw-bold text-light mb-2"><i class="fa-solid fa-shield-halved text-info me-2"></i>Role-Based Access Control (RBAC)</h5>
-              <p class="text-secondary small mb-4">Overview of feature capabilities matrix configured across system roles.</p>
-              
+              <h5 class="fw-bold text-light mb-2">
+                <i class="fa-solid fa-shield-halved text-info me-2"></i>Role-Based Access Control (RBAC)
+              </h5>
+              <p class="text-secondary small mb-4">
+                Overview of feature capabilities matrix configured across system roles.
+              </p>
+
               <div class="table-responsive">
                 <table class="table table-dark-custom align-middle">
                   <thead>
@@ -452,7 +473,6 @@
               </div>
             </div>
           </section>
-
         </main>
       </div>
     </div>
