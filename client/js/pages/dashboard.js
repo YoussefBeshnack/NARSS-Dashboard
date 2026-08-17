@@ -898,7 +898,7 @@ function openAddMemberModal(projectId, callback) {
           }
 
           try {
-            await projectService.addTeamMember(projectId, { user: userId, userId, role });
+            await projectService.addTeamMember(projectId, { userId, role });
             Toast.success("Team member assigned!");
             m.close();
             if (callback) callback();
@@ -2097,12 +2097,17 @@ function renderUsersTable(users) {
         <td><small class="text-secondary">${joinedDate}</small></td>
         <td class="text-end">
           ${isSelf
-          ? `<button class="btn btn-outline-secondary btn-sm" disabled title="Admins cannot alter their own role">
+          ? `<button class="btn btn-outline-secondary btn-sm" disabled title="Admins cannot alter their own account">
                    <i class="fa-solid fa-lock me-1"></i> Current User
                  </button>`
-          : `<button class="btn btn-outline-info btn-sm change-user-role-btn" data-id="${u._id || u.id}">
-                   <i class="fa-solid fa-user-gear me-1"></i> Change Role
-                 </button>`
+          : `<div class="d-flex gap-2 justify-content-end">
+               <button class="btn btn-outline-info btn-sm change-user-role-btn" data-id="${u._id || u.id}">
+                 <i class="fa-solid fa-user-gear me-1"></i> Change Role
+               </button>
+               <button class="btn btn-outline-danger btn-sm delete-user-btn" data-id="${u._id || u.id}" data-name="${u.name}" title="Delete user">
+                 <i class="fa-solid fa-trash"></i>
+               </button>
+             </div>`
         }
         </td>
       </tr>
@@ -2118,6 +2123,38 @@ function renderUsersTable(users) {
       if (user) {
         openEditUserRoleModal(user);
       }
+    });
+  });
+
+  // Attach event listeners for delete user buttons
+  tbody.querySelectorAll(".delete-user-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const userId = btn.getAttribute("data-id");
+      const userName = btn.getAttribute("data-name");
+      Modal.confirm({
+        title: "Delete User Account",
+        message: `Are you sure you want to permanently delete the account for <strong>${userName}</strong>? This action cannot be undone.`,
+        onConfirm: async () => {
+          try {
+            // Resilient fallback: use apiClient.delete directly in case auth.service.js is cached
+            const deleteUserFn =
+              typeof authService.deleteUser === "function"
+                ? (id) => authService.deleteUser(id)
+                : (id) => apiClient.delete(`/auth/users/${id}`);
+
+            const res = await deleteUserFn(userId);
+            if (res && res.success) {
+              Toast.success(`User "${userName}" deleted successfully.`);
+              loadUserManagementView();
+            } else {
+              Toast.error(res?.message || "Failed to delete user.");
+            }
+          } catch (err) {
+            console.error("Failed to delete user:", err);
+            Toast.error(err.message || "Failed to delete user.");
+          }
+        },
+      });
     });
   });
 }

@@ -307,6 +307,41 @@ const updateUserRole = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Delete a user account (Admin only)
+ * @route   DELETE /api/auth/users/:id
+ * @access  Private (Admin)
+ */
+const deleteUser = asyncHandler(async (req, res) => {
+  // Prevent self-deletion
+  if (req.params.id === req.user._id.toString()) {
+    res.status(400);
+    throw new Error('Administrators cannot delete their own account');
+  }
+
+  const userToDelete = await User.findById(req.params.id);
+  if (!userToDelete) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  // Prevent deleting the last Admin in the system
+  if (userToDelete.role === 'Admin') {
+    const adminCount = await User.countDocuments({ role: 'Admin' });
+    if (adminCount <= 1) {
+      res.status(400);
+      throw new Error('Cannot delete the last Administrator account');
+    }
+  }
+
+  await userToDelete.deleteOne();
+
+  res.status(200).json({
+    success: true,
+    message: `User "${userToDelete.name}" deleted successfully`,
+  });
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -316,4 +351,5 @@ module.exports = {
   getMe,
   getUsers,
   updateUserRole,
+  deleteUser,
 };

@@ -9,6 +9,7 @@ const {
   getMe,
   getUsers,
   updateUserRole,
+  deleteUser,
 } = require('../controllers/authController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 
@@ -24,5 +25,6 @@ router.post('/reset-password', resetPassword);
 router.get('/me', protect, getMe);
 router.get('/users', protect, getUsers);
 router.put('/users/:id', protect, authorize('Admin'), updateUserRole);
+router.delete('/users/:id', protect, authorize('Admin'), deleteUser);
 
 module.exports = router;

@@ -65,6 +65,14 @@ export class AuthService {
   async updateUserRole(userId, role) {
     return apiClient.put(`/auth/users/${userId}`, { role });
   }
+
+  /**
+   * Delete a user account (Admin only)
+   * @param {string} userId - Target user ID
+   */
+  async deleteUser(userId) {
+    return apiClient.delete(`/auth/users/${userId}`);
+  }
 }
 
 export const authService = new AuthService();

@@ -6,7 +6,6 @@ const {
   uploadDocument,
   uploadNewVersion,
   revertDocumentVersion,
-  deleteDocumentVersion,
   deleteDocument,
 } = require('../controllers/documentController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
@@ -28,6 +27,5 @@ router
 // Document Versioning routes
 router.post('/:id/versions', upload.single('file'), uploadNewVersion);
 router.post('/:id/revert/:versionNumber', revertDocumentVersion);
-router.delete('/:id/versions/:versionNumber', authorize('Admin', 'Manager'), deleteDocumentVersion);
 
 module.exports = router;

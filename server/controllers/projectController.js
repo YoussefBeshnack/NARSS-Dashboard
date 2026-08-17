@@ -195,10 +195,9 @@ const deleteProject = asyncHandler(async (req, res) => {
  * @access  Private (Admin, Manager, PI)
  */
 const addTeamMember = asyncHandler(async (req, res) => {
-  const userId = req.body.user || req.body.userId;
-  const role = req.body.role;
+  const { user, role } = req.body;
 
-  if (!userId) {
+  if (!user) {
     res.status(400);
     throw new Error('User ID is required');
   }
@@ -212,7 +211,7 @@ const addTeamMember = asyncHandler(async (req, res) => {
 
   // Check if member already exists
   const isExisting = project.teamMembers.some(
-    (member) => member.user.toString() === userId.toString()
+    (member) => member.user.toString() === user
   );
 
   if (isExisting) {
@@ -221,14 +220,14 @@ const addTeamMember = asyncHandler(async (req, res) => {
   }
 
   // Verify user exists in database
-  const userExists = await User.findById(userId);
+  const userExists = await User.findById(user);
   if (!userExists) {
     res.status(404);
     throw new Error('User not found in system');
   }
 
   project.teamMembers.push({
-    user: userId,
+    user,
     role: role || 'Researcher',
   });
 
@@ -478,8 +477,8 @@ const updateReport = asyncHandler(async (req, res) => {
     .populate('milestones.uploadedBy', 'name email role');
 
   const updatedReport = (populatedProject.reports && populatedProject.reports.id(targetId)) ||
-                        (populatedProject.milestones && populatedProject.milestones.id(targetId)) ||
-                        report;
+    (populatedProject.milestones && populatedProject.milestones.id(targetId)) ||
+    report;
 
   res.status(200).json({
     success: true,
