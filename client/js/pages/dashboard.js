@@ -346,9 +346,9 @@ function renderProjectsGrid(projects) {
   if (projects.length === 0) {
     container.innerHTML = `
       <div class="col-12 text-center py-5">
-        <i class="fa-solid fa-folder-open fs-1 text-muted mb-3 d-block"></i>
+        <i class="fa-solid fa-folder-open fs-1 text-secondary mb-3 d-block"></i>
         <h6 class="text-light">No projects found</h6>
-        <small class="text-muted">Try adjusting search or status filters</small>
+        <small class="text-secondary">Try adjusting search or status filters</small>
       </div>
     `;
     return;
@@ -381,7 +381,7 @@ function renderProjectsGrid(projects) {
             </div>
 
             <div class="mb-3">
-              <div class="d-flex align-items-center justify-content-between small text-muted mb-1">
+              <div class="d-flex align-items-center justify-content-between small text-secondary mb-1">
                 <span>Reports Progress</span>
                 <span class="text-light">${completedReports} / ${reportsCount}</span>
               </div>
@@ -435,7 +435,7 @@ async function openProjectDetailModal(projectId) {
         `,
           )
           .join("")
-        : '<p class="text-muted small">No team members assigned.</p>';
+        : '<p class="text-secondary small">No team members assigned.</p>';
 
     const reportsList = p.reports && p.reports.length > 0 ? p.reports : (p.milestones || []);
 
@@ -456,7 +456,7 @@ async function openProjectDetailModal(projectId) {
           <div class="d-flex flex-wrap align-items-center justify-content-between py-2 border-bottom border-secondary border-opacity-25 gap-2">
             <div>
               <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                <span class="fw-semibold text-light ${r.status === "Completed" ? "text-decoration-line-through text-muted" : ""}">${r.title}</span>
+                <span class="fw-semibold text-light ${r.status === "Completed" ? "text-decoration-line-through" : ""}">${r.title}</span>
                 ${typeBadge}
                 ${r.filePath
                 ? `<a href="${r.filePath}" target="_blank" download class="btn btn-outline-info btn-sm py-0 px-2 small" title="Download Attached Deliverable (${r.fileName || "File"})">
@@ -674,7 +674,7 @@ function openCreateProjectModal() {
         <input type="text" id="pi-search-input" class="form-control" autocomplete="off" placeholder="Search user by name or email..." value="${defaultPiName}" />
         <span class="left"><i class="fa-solid fa-user-doctor"></i></span>
       </div>
-      <small class="text-muted">Type to search and select any user as Principal Investigator.</small>
+      <small class="text-secondary">Type to search and select any user as Principal Investigator.</small>
     </div>
     <div class="row g-3 mb-3">
       <div class="col-6">
@@ -1178,7 +1178,7 @@ function renderExpensesTable(expenses) {
   if (!tbody) return;
 
   if (expenses.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted">No expense logs found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-secondary">No expense logs found.</td></tr>`;
     return;
   }
 
@@ -1189,7 +1189,7 @@ function renderExpensesTable(expenses) {
       const statusBadge = `badge-${e.status ? e.status.toLowerCase() : "pending"}`;
       const receiptLink = e.receiptUrl
         ? `<a href="${API_CONFIG.SERVER_URL}${e.receiptUrl}" target="_blank" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-paperclip me-1"></i>Receipt</a>`
-        : '<span class="text-muted small">None</span>';
+        : '<span class="small text-secondary">None</span>';
 
       return `
       <tr>

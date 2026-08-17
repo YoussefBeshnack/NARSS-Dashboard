@@ -195,7 +195,9 @@ const deleteProject = asyncHandler(async (req, res) => {
  * @access  Private (Admin, Manager, PI)
  */
 const addTeamMember = asyncHandler(async (req, res) => {
-  const { user, role } = req.body;
+  // Accept both `userId` (frontend) and `user` (legacy) field names
+  const user = req.body.userId || req.body.user;
+  const { role } = req.body;
 
   if (!user) {
     res.status(400);
