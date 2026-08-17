@@ -1,6 +1,7 @@
 import { requireAuth } from "../core/guard.js";
 import { authStore } from "../services/auth.store.js";
 import { authService } from "../services/auth.service.js";
+import { apiClient } from "../services/api.js";
 import { dashboardService } from "../services/dashboard.service.js";
 import { projectService } from "../services/project.service.js";
 import { expenseService } from "../services/expense.service.js";
@@ -952,7 +953,10 @@ function openAddReportModal(projectId, callback) {
       <div class="mb-3">
         <label class="fw-medium text-light">Attached Report Document (Optional)</label>
         <input type="file" name="file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.png,.jpg,.jpeg" />
-        <small class="text-secondary">Attach report deliverables directly within this menu (PDF, DOCX, XLSX, etc. Max 10MB).</small>
+        <div class="d-flex align-items-center gap-1 mt-1">
+          <i class="fa-solid fa-circle-info text-info" style="font-size:0.75rem"></i>
+          <small class="text-secondary">Max file size: <strong class="text-light">10 MB</strong> &mdash; PDF, DOCX, XLSX, CSV, TXT, ZIP, Images</small>
+        </div>
       </div>
     </form>
   `;
@@ -1043,7 +1047,10 @@ function openEditReportModal(projectId, report, callback) {
             : ""
         }
         <input type="file" name="file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.png,.jpg,.jpeg" />
-        <small class="text-secondary">${report.filePath ? "Upload a new file to replace the current attachment." : "Attach report deliverables directly (PDF, DOCX, XLSX, etc. Max 10MB)."}</small>
+        <div class="d-flex align-items-center gap-1 mt-1">
+          <i class="fa-solid fa-circle-info text-info" style="font-size:0.75rem"></i>
+          <small class="text-secondary">${report.filePath ? "Upload a new file to replace the current attachment." : "Attach report deliverables directly."} Max file size: <strong class="text-light">10 MB</strong></small>
+        </div>
       </div>
     </form>
   `;
@@ -1474,6 +1481,10 @@ async function openUploadDocModal() {
       <div class="mb-3">
         <label class="fw-medium">Select Document File</label>
         <input type="file" name="file" class="form-control" required />
+        <div class="d-flex align-items-center gap-1 mt-1">
+          <i class="fa-solid fa-circle-info text-info" style="font-size:0.75rem"></i>
+          <small class="text-secondary">Max file size: <strong class="text-light">10 MB</strong> &mdash; Accepted: PDF, DOC, DOCX, XLS, XLSX, CSV, TXT, ZIP, Images</small>
+        </div>
       </div>
     </form>
   `;
@@ -1515,6 +1526,10 @@ function openUploadVersionModal(documentId) {
       <div class="mb-3">
         <label class="fw-medium">New Version File</label>
         <input type="file" name="file" class="form-control" required />
+        <div class="d-flex align-items-center gap-1 mt-1">
+          <i class="fa-solid fa-circle-info text-info" style="font-size:0.75rem"></i>
+          <small class="text-secondary">Max file size: <strong class="text-light">10 MB</strong> &mdash; Accepted: PDF, DOC, DOCX, XLS, XLSX, CSV, TXT, ZIP, Images</small>
+        </div>
       </div>
     </form>
   `;
@@ -1557,6 +1572,7 @@ async function openVersionHistoryModal(documentId) {
 
     const d = res.document;
     const history = d.versionHistory || [];
+    const canManage = ["Admin", "Manager"].includes(userRole);
 
     const historyHtml =
       history.length > 0
@@ -1565,17 +1581,26 @@ async function openVersionHistoryModal(documentId) {
               (v) => `
           <div class="d-flex align-items-center justify-content-between py-3 border-bottom border-secondary border-opacity-25">
             <div>
-              <div class="fw-bold text-light">Version ${v.versionNumber} ${v.versionNumber === d.versionNumber ? '<span class="badge bg-success ms-2">Active</span>' : ""}</div>
-              <small class="text-secondary">${v.fileName || d.fileName} | Uploaded: ${new Date(v.uploadedAt).toLocaleString()}</small>
+              <div class="fw-bold text-light">
+                Version ${v.versionNumber}
+                ${v.versionNumber === d.versionNumber ? '<span class="badge bg-success ms-2">Active</span>' : ""}
+              </div>
+              <small class="text-secondary">${v.fileName || d.fileName}</small><br>
+              <small class="text-secondary">Uploaded: ${new Date(v.uploadedAt).toLocaleString()}</small>
             </div>
-            <div>
+            <div class="d-flex align-items-center gap-2">
               ${
                 v.versionNumber !== d.versionNumber
-                  ? `
-                <button class="btn btn-outline-warning btn-sm revert-ver-btn" data-ver="${v.versionNumber}">
-                  <i class="fa-solid fa-rotate-left me-1"></i>Revert to v${v.versionNumber}
-                </button>
-              `
+                  ? `<button class="btn btn-outline-warning btn-sm revert-ver-btn" data-ver="${v.versionNumber}">
+                      <i class="fa-solid fa-rotate-left me-1"></i>Revert to v${v.versionNumber}
+                    </button>
+                    ${
+                      canManage
+                        ? `<button class="btn btn-outline-danger btn-sm delete-ver-btn" data-ver="${v.versionNumber}" title="Delete this version from history">
+                            <i class="fa-solid fa-trash"></i>
+                           </button>`
+                        : ""
+                    }`
                   : '<span class="text-secondary small">Active Version</span>'
               }
             </div>
@@ -1615,6 +1640,33 @@ async function openVersionHistoryModal(documentId) {
         } catch (err) {
           Toast.error(err.message || "Failed to revert version.");
         }
+      });
+    });
+
+    // Delete version button handlers
+    modalContent.querySelectorAll(".delete-ver-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetVer = btn.getAttribute("data-ver");
+        Modal.confirm({
+          title: "Delete Version",
+          message: `Are you sure you want to permanently delete <strong>Version ${targetVer}</strong> from the revision history? This action cannot be undone.`,
+          onConfirm: async () => {
+            try {
+              // Resilient call: use deleteVersion if available on the live instance, otherwise call apiClient directly
+              if (typeof documentService.deleteVersion === "function") {
+                await documentService.deleteVersion(d._id, targetVer);
+              } else {
+                await apiClient.delete(`/documents/${d._id}/versions/${targetVer}`);
+              }
+              Toast.success(`Version ${targetVer} deleted from history.`);
+              modal.close();
+              openVersionHistoryModal(documentId);
+              loadDocumentsView();
+            } catch (err) {
+              Toast.error(err.message || "Failed to delete version.");
+            }
+          },
+        });
       });
     });
   } catch (err) {

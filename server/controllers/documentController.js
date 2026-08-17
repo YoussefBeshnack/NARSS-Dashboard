@@ -208,9 +208,50 @@ const revertDocumentVersion = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Delete document
+ * @desc    Delete a specific version from document version history
+ * @route   DELETE /api/documents/:id/versions/:versionNumber
+ * @access  Private (Admin, Manager)
+ */
+const deleteDocumentVersion = asyncHandler(async (req, res) => {
+  const targetVersion = parseInt(req.params.versionNumber, 10);
+  const document = await Document.findById(req.params.id);
+
+  if (!document) {
+    res.status(404);
+    throw new Error('Document not found');
+  }
+
+  // Cannot delete the active version — use revert or delete document instead
+  if (targetVersion === document.versionNumber) {
+    res.status(400);
+    throw new Error(
+      'Cannot delete the currently active version. Revert to another version first, or delete the entire document.'
+    );
+  }
+
+  const versionIndex = document.versionHistory.findIndex(
+    (v) => v.versionNumber === targetVersion
+  );
+
+  if (versionIndex === -1) {
+    res.status(404);
+    throw new Error(`Version ${targetVersion} not found in document history`);
+  }
+
+  document.versionHistory.splice(versionIndex, 1);
+  await document.save();
+
+  res.status(200).json({
+    success: true,
+    message: `Version ${targetVersion} deleted from document history`,
+    document,
+  });
+});
+
+/**
+ * @desc    Delete document and all its versions
  * @route   DELETE /api/documents/:id
- * @access  Private (Admin, Manager, UploadedBy)
+ * @access  Private (Admin, Manager)
  */
 const deleteDocument = asyncHandler(async (req, res) => {
   const document = await Document.findById(req.params.id);
@@ -234,5 +275,6 @@ module.exports = {
   uploadDocument,
   uploadNewVersion,
   revertDocumentVersion,
+  deleteDocumentVersion,
   deleteDocument,
 };

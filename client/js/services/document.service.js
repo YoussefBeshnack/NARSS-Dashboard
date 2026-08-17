@@ -57,6 +57,13 @@ export class DocumentService {
   async deleteDocument(id) {
     return apiClient.delete(`/documents/${id}`);
   }
+
+  /**
+   * Delete a specific version from document version history (Admin/Manager only)
+   */
+  async deleteVersion(documentId, versionNumber) {
+    return apiClient.delete(`/documents/${documentId}/versions/${versionNumber}`);
+  }
 }
 
 export const documentService = new DocumentService();
