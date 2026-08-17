@@ -5,7 +5,7 @@ const control = new AuthStore();
 
 const shortcutMap = {
   "Ctrl+Shift+KeyS": () => control.setSession({ token: "temp" }),
-  "Ctrl+Shift+KeyL": () => await handleLogout(),
+  "Ctrl+Shift+KeyL": async () => await handleLogout(),
 };
 
 document.addEventListener("keydown", (event) => {

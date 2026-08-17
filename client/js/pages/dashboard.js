@@ -17,6 +17,7 @@ let userRole = "Researcher";
 let chartBudgetSpentInstance = null;
 let chartMilestonesInstance = null;
 let projectsCache = [];
+let allUsersCache = [];
 
 /**
  * Silently pre-loads projectsCache so modal project dropdowns are populated
@@ -120,6 +121,13 @@ function setupNavigation() {
 }
 
 function switchView(viewName) {
+  // Guard Admin-only User Management view
+  if (viewName === "userManagement" && userRole !== "Admin") {
+    Toast.error("Access denied. Administrator privileges required.");
+    window.location.hash = "dashboard";
+    viewName = "dashboard";
+  }
+
   // Update sidebar active state
   const navLinks = document.querySelectorAll(".sidebar-nav .nav-link");
   navLinks.forEach((link) => {
@@ -147,7 +155,7 @@ function switchView(viewName) {
     publications: "Research Outputs & Publications",
     profile: "User Profile",
     settings: "System Settings & Role Permissions",
-    userManagement: "User Management",
+    userManagement: "User Management & Role Permissions",
   };
   if (pageTitle) pageTitle.textContent = titles[viewName] || "Dashboard";
 
@@ -1735,3 +1743,266 @@ async function loadProfileView() {
     console.error("Failed to load profile projects:", err);
   }
 }
+
+// ----------------------------------------------------
+// VIEW 8: USER MANAGEMENT & ROLE CONTROL (ADMIN ONLY)
+// ----------------------------------------------------
+function getRoleBadge(role) {
+  switch (role) {
+    case "Admin":
+      return '<span class="badge bg-danger"><i class="fa-solid fa-shield-halved me-1"></i>Admin</span>';
+    case "Manager":
+      return '<span class="badge bg-warning text-dark"><i class="fa-solid fa-user-tie me-1"></i>Manager</span>';
+    case "Researcher":
+      return '<span class="badge bg-info text-dark"><i class="fa-solid fa-microscope me-1"></i>Researcher</span>';
+    case "External Partner":
+      return '<span class="badge bg-secondary"><i class="fa-solid fa-handshake me-1"></i>External Partner</span>';
+    default:
+      return `<span class="badge bg-secondary">${role || "User"}</span>`;
+  }
+}
+
+function getUserAvatar(name, role) {
+  const initial = (name ? name.charAt(0) : "U").toUpperCase();
+  let bgClass = "bg-primary";
+  if (role === "Admin") bgClass = "bg-danger";
+  else if (role === "Manager") bgClass = "bg-warning text-dark";
+  else if (role === "Researcher") bgClass = "bg-info text-dark";
+  else if (role === "External Partner") bgClass = "bg-secondary text-white";
+
+  return `
+    <div class="${bgClass} text-white rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 36px; height: 36px; font-size: 0.95rem;">
+      ${initial}
+    </div>
+  `;
+}
+
+async function loadUserManagementView() {
+  if (userRole !== "Admin") {
+    Toast.error("Access denied. Administrator privileges required.");
+    window.location.hash = "dashboard";
+    return;
+  }
+
+  try {
+    const res = await authService.getAllUsers();
+    if (res && res.success) {
+      allUsersCache = res.users || [];
+      updateUserManagementKPIs(allUsersCache);
+      applyUserFilters();
+    } else {
+      Toast.error("Failed to load registered users.");
+    }
+  } catch (err) {
+    console.error("Failed to load user management view:", err);
+    Toast.error(err.message || "Failed to load users.");
+  }
+
+  // Setup event listeners for filtering
+  const searchInput = document.getElementById("user-search-input");
+  const roleFilter = document.getElementById("user-role-filter");
+  const refreshBtn = document.getElementById("user-refresh-btn");
+
+  if (searchInput && !searchInput.dataset.hasListener) {
+    searchInput.dataset.hasListener = "true";
+    searchInput.addEventListener("input", () => applyUserFilters());
+  }
+
+  if (roleFilter && !roleFilter.dataset.hasListener) {
+    roleFilter.dataset.hasListener = "true";
+    roleFilter.addEventListener("change", () => applyUserFilters());
+  }
+
+  if (refreshBtn && !refreshBtn.dataset.hasListener) {
+    refreshBtn.dataset.hasListener = "true";
+    refreshBtn.addEventListener("click", () => {
+      loadUserManagementView();
+      Toast.info("User list refreshed.");
+    });
+  }
+}
+
+function updateUserManagementKPIs(users) {
+  const total = users.length;
+  const admins = users.filter((u) => u.role === "Admin").length;
+  const managers = users.filter((u) => u.role === "Manager").length;
+  const researchersAndPartners = users.filter(
+    (u) => u.role === "Researcher" || u.role === "External Partner"
+  ).length;
+
+  const totalEl = document.getElementById("kpi-users-total");
+  const adminEl = document.getElementById("kpi-users-admin");
+  const managerEl = document.getElementById("kpi-users-manager");
+  const researcherEl = document.getElementById("kpi-users-researcher");
+
+  if (totalEl) totalEl.textContent = total;
+  if (adminEl) adminEl.textContent = admins;
+  if (managerEl) managerEl.textContent = managers;
+  if (researcherEl) researcherEl.textContent = researchersAndPartners;
+}
+
+function applyUserFilters() {
+  const search = (document.getElementById("user-search-input")?.value || "").toLowerCase().trim();
+  const role = document.getElementById("user-role-filter")?.value || "";
+
+  const filtered = allUsersCache.filter((u) => {
+    const matchesSearch =
+      !search ||
+      (u.name && u.name.toLowerCase().includes(search)) ||
+      (u.email && u.email.toLowerCase().includes(search));
+    const matchesRole = !role || u.role === role;
+    return matchesSearch && matchesRole;
+  });
+
+  renderUsersTable(filtered);
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById("users-table-body");
+  if (!tbody) return;
+
+  if (users.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No users found matching filter criteria.</td></tr>`;
+    return;
+  }
+
+  const currentUserId = currentUser.id || currentUser._id;
+
+  tbody.innerHTML = users
+    .map((u) => {
+      const isSelf = (u._id || u.id) === currentUserId;
+      const joinedDate = u.createdAt
+        ? new Date(u.createdAt).toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
+        : "-";
+
+      return `
+      <tr>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            ${getUserAvatar(u.name, u.role)}
+            <div>
+              <div class="fw-semibold text-light">
+                ${u.name}
+                ${isSelf ? '<span class="badge bg-secondary ms-1 small">You</span>' : ""}
+              </div>
+            </div>
+          </div>
+        </td>
+        <td><small class="text-light">${u.email}</small></td>
+        <td>${getRoleBadge(u.role)}</td>
+        <td><small class="text-secondary">${joinedDate}</small></td>
+        <td class="text-end">
+          ${
+            isSelf
+              ? `<button class="btn btn-outline-secondary btn-sm" disabled title="Admins cannot alter their own role">
+                   <i class="fa-solid fa-lock me-1"></i> Current User
+                 </button>`
+              : `<button class="btn btn-outline-info btn-sm change-user-role-btn" data-id="${u._id || u.id}">
+                   <i class="fa-solid fa-user-gear me-1"></i> Change Role
+                 </button>`
+          }
+        </td>
+      </tr>
+    `;
+    })
+    .join("");
+
+  // Attach event listeners for change role buttons
+  tbody.querySelectorAll(".change-user-role-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const userId = btn.getAttribute("data-id");
+      const user = allUsersCache.find((u) => (u._id || u.id) === userId);
+      if (user) {
+        openEditUserRoleModal(user);
+      }
+    });
+  });
+}
+
+function openEditUserRoleModal(user) {
+  const roles = ["Admin", "Manager", "Researcher", "External Partner"];
+  const roleDescriptions = {
+    Admin: "Full administrative control: manage all projects, delete records, approve expenses, and manage system user roles.",
+    Manager: "Project & Finance Lead: create/edit projects, milestones, approve/reject expenses, and upload documents.",
+    Researcher: "Research Contributor: log expenses, upload documents, register research publications/outputs.",
+    "External Partner": "View-only access: view assigned projects, documents, and research outputs.",
+  };
+
+  const formEl = document.createElement("div");
+  formEl.innerHTML = `
+    <div class="mb-3 p-3 glass-card border border-secondary border-opacity-25 rounded-3">
+      <div class="d-flex align-items-center gap-3">
+        ${getUserAvatar(user.name, user.role)}
+        <div>
+          <h6 class="fw-bold text-light m-0">${user.name}</h6>
+          <small class="text-secondary">${user.email}</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label text-light fw-semibold small uppercase">Select New System Role</label>
+      <select id="select-new-role" class="form-select">
+        ${roles
+          .map((r) => `<option value="${r}" ${user.role === r ? "selected" : ""}>${r}</option>`)
+          .join("")}
+      </select>
+    </div>
+
+    <div class="alert alert-dark border-secondary border-opacity-50 py-2 px-3 small" id="role-description-box">
+      <i class="fa-solid fa-circle-info text-info me-2"></i>
+      <span id="role-description-text">${roleDescriptions[user.role] || ""}</span>
+    </div>
+  `;
+
+  // Update description when role selection changes
+  const selectEl = formEl.querySelector("#select-new-role");
+  const descEl = formEl.querySelector("#role-description-text");
+  selectEl.addEventListener("change", (e) => {
+    if (descEl) descEl.textContent = roleDescriptions[e.target.value] || "";
+  });
+
+  new Modal({
+    title: `Modify User Role: ${user.name}`,
+    content: formEl,
+    actions: [
+      {
+        text: "Cancel",
+        class: "btn-outline-secondary",
+        onClick: (_, m) => m.close(),
+      },
+      {
+        text: "Save Changes",
+        class: "btn-secondary",
+        onClick: async (_, m) => {
+          const newRole = selectEl.value;
+          if (newRole === user.role) {
+            Toast.info("No role changes made.");
+            m.close();
+            return;
+          }
+
+          try {
+            const res = await authService.updateUserRole(user._id || user.id, newRole);
+            if (res && res.success) {
+              Toast.success(`Role for ${user.name} updated to ${newRole} successfully!`);
+              m.close();
+              // Refresh user management view
+              loadUserManagementView();
+            } else {
+              Toast.error(res?.message || "Failed to update user role.");
+            }
+          } catch (err) {
+            console.error("Failed to update user role:", err);
+            Toast.error(err.message || "Failed to update user role.");
+          }
+        },
+      },
+    ],
+  });
+}
+
