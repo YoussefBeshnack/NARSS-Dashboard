@@ -9,7 +9,7 @@ import { documentService } from "../services/document.service.js";
 import { publicationService } from "../services/publication.service.js";
 import { Toast } from "../components/toast.js";
 import { Modal } from "../components/modal.js";
-import { ROUTES } from "../core/constants.js";
+import { ROUTES, API_CONFIG } from "../core/constants.js";
 import { setupUserAutocomplete } from "../components/user-autocomplete.js";
 
 // Global State
@@ -423,8 +423,8 @@ async function openProjectDetailModal(projectId) {
     const membersHtml =
       p.teamMembers && p.teamMembers.length > 0
         ? p.teamMembers
-            .map(
-              (m) => `
+          .map(
+            (m) => `
           <div class="d-flex align-items-center justify-content-between py-2 border-bottom border-secondary border-opacity-25">
             <div>
               <div class="fw-semibold text-light">${m.user ? m.user.name : "User"}</div>
@@ -433,8 +433,8 @@ async function openProjectDetailModal(projectId) {
             ${isOwnerOrAdmin ? `<button class="btn btn-outline-danger btn-sm remove-member-btn" data-user-id="${m.user ? m.user._id : ""}"><i class="fa-solid fa-trash"></i></button>` : ""}
           </div>
         `,
-            )
-            .join("")
+          )
+          .join("")
         : '<p class="text-muted small">No team members assigned.</p>';
 
     const reportsList = p.reports && p.reports.length > 0 ? p.reports : (p.milestones || []);
@@ -442,29 +442,28 @@ async function openProjectDetailModal(projectId) {
     const reportsHtml =
       reportsList.length > 0
         ? reportsList
-            .map((r) => {
-              const typeBadge =
-                r.reportType === "Final"
-                  ? '<span class="badge bg-danger"><i class="fa-solid fa-flag-checkered me-1"></i>Final</span>'
-                  : r.reportType === "Semi-Final"
-                    ? '<span class="badge bg-warning text-dark"><i class="fa-solid fa-hourglass-half me-1"></i>Semi-Final</span>'
-                    : '<span class="badge bg-info text-dark"><i class="fa-solid fa-clock-rotate-left me-1"></i>Periodic</span>';
+          .map((r) => {
+            const typeBadge =
+              r.reportType === "Final"
+                ? '<span class="badge bg-danger"><i class="fa-solid fa-flag-checkered me-1"></i>Final</span>'
+                : r.reportType === "Semi-Final"
+                  ? '<span class="badge bg-warning text-dark"><i class="fa-solid fa-hourglass-half me-1"></i>Semi-Final</span>'
+                  : '<span class="badge bg-info text-dark"><i class="fa-solid fa-clock-rotate-left me-1"></i>Periodic</span>';
 
-              const uploaderName = r.uploadedBy ? (r.uploadedBy.name || r.uploadedBy.email) : null;
+            const uploaderName = r.uploadedBy ? (r.uploadedBy.name || r.uploadedBy.email) : null;
 
-              return `
+            return `
           <div class="d-flex flex-wrap align-items-center justify-content-between py-2 border-bottom border-secondary border-opacity-25 gap-2">
             <div>
               <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                 <span class="fw-semibold text-light ${r.status === "Completed" ? "text-decoration-line-through text-muted" : ""}">${r.title}</span>
                 ${typeBadge}
-                ${
-                  r.filePath
-                    ? `<a href="${r.filePath}" target="_blank" download class="btn btn-outline-info btn-sm py-0 px-2 small" title="Download Attached Deliverable (${r.fileName || "File"})">
+                ${r.filePath
+                ? `<a href="${r.filePath}" target="_blank" download class="btn btn-outline-info btn-sm py-0 px-2 small" title="Download Attached Deliverable (${r.fileName || "File"})">
                          <i class="fa-solid fa-paperclip me-1"></i>${r.fileName || "Document"}
                        </a>`
-                    : '<span class="badge bg-secondary bg-opacity-25 text-secondary small"><i class="fa-solid fa-paperclip me-1"></i>No File</span>'
-                }
+                : '<span class="badge bg-secondary bg-opacity-25 text-secondary small"><i class="fa-solid fa-paperclip me-1"></i>No File</span>'
+              }
               </div>
               <div class="d-flex align-items-center gap-2 flex-wrap">
                 <small class="text-secondary">Due: ${new Date(r.deadline).toLocaleDateString()}</small>
@@ -482,8 +481,8 @@ async function openProjectDetailModal(projectId) {
             </div>
           </div>
         `;
-            })
-            .join("")
+          })
+          .join("")
         : '<p class="text-muted small">No reports defined for this project.</p>';
 
     const modalContent = document.createElement("div");
@@ -760,7 +759,7 @@ function openEditProjectModal(project) {
   formEl.id = "edit-project-form";
 
   // Pre-fill PI display string
-  const currentPiId   = p.pi ? (p.pi._id || p.pi.id || "") : "";
+  const currentPiId = p.pi ? (p.pi._id || p.pi.id || "") : "";
   const currentPiName = p.pi ? `${p.pi.name} (${p.pi.email})` : "";
 
   // Build status options with current value pre-selected
@@ -790,11 +789,11 @@ function openEditProjectModal(project) {
     <div class="row g-3 mb-3">
       <div class="col-6">
         <label class="fw-medium">Start Date</label>
-        <input type="date" name="startDate" class="form-control" required value="${p.startDate ? p.startDate.substring(0,10) : ""}" />
+        <input type="date" name="startDate" class="form-control" required value="${p.startDate ? p.startDate.substring(0, 10) : ""}" />
       </div>
       <div class="col-6">
         <label class="fw-medium">End Date</label>
-        <input type="date" name="endDate" class="form-control" required value="${p.endDate ? p.endDate.substring(0,10) : ""}" />
+        <input type="date" name="endDate" class="form-control" required value="${p.endDate ? p.endDate.substring(0, 10) : ""}" />
       </div>
     </div>
     <div class="row g-3 mb-3">
@@ -854,7 +853,7 @@ function openEditProjectModal(project) {
   setupUserAutocomplete({
     searchInputEl: formEl.querySelector("#edit-pi-search-input"),
     hiddenInputEl: formEl.querySelector("#edit-pi-id-input"),
-    containerEl:   formEl.querySelector("#edit-pi-autocomplete-container"),
+    containerEl: formEl.querySelector("#edit-pi-autocomplete-container"),
   });
 }
 
@@ -999,15 +998,14 @@ function openEditReportModal(projectId, report, callback) {
 
   const formHtml = `
     <form id="edit-report-form">
-      ${
-        uploaderName
-          ? `
+      ${uploaderName
+      ? `
         <div class="mb-3 p-2 rounded bg-dark border border-secondary border-opacity-25 small text-secondary">
           <i class="fa-solid fa-user-pen text-info me-1"></i> Originally uploaded by: <strong class="text-light">${uploaderName}</strong>
         </div>
       `
-          : ""
-      }
+      : ""
+    }
       <div class="mb-3">
         <label class="fw-medium text-light">Report Title <span class="text-danger">*</span></label>
         <input type="text" name="title" class="form-control" required value="${report.title || ""}" />
@@ -1036,16 +1034,15 @@ function openEditReportModal(projectId, report, callback) {
       </div>
       <div class="mb-3">
         <label class="fw-medium text-light">Attached Report Document</label>
-        ${
-          report.filePath
-            ? `
+        ${report.filePath
+      ? `
           <div class="mb-2 p-2 bg-dark rounded border border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
             <span class="small text-light text-truncate"><i class="fa-solid fa-file me-2 text-info"></i>${report.fileName || "Attached Document"}</span>
             <a href="${report.filePath}" target="_blank" download class="btn btn-outline-info btn-sm py-0 px-2">Download</a>
           </div>
         `
-            : ""
-        }
+      : ""
+    }
         <input type="file" name="file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.png,.jpg,.jpeg" />
         <div class="d-flex align-items-center gap-1 mt-1">
           <i class="fa-solid fa-circle-info text-info" style="font-size:0.75rem"></i>
@@ -1193,7 +1190,7 @@ function renderExpensesTable(expenses) {
     .map((e) => {
       const statusBadge = `badge-${e.status ? e.status.toLowerCase() : "pending"}`;
       const receiptLink = e.receiptUrl
-        ? `<a href="http://localhost:5000${e.receiptUrl}" target="_blank" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-paperclip me-1"></i>Receipt</a>`
+        ? `<a href="${API_CONFIG.SERVER_URL}${e.receiptUrl}" target="_blank" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-paperclip me-1"></i>Receipt</a>`
         : '<span class="text-muted small">None</span>';
 
       return `
@@ -1207,14 +1204,13 @@ function renderExpensesTable(expenses) {
         <td><span class="badge ${statusBadge}">${e.status}</span></td>
         <td><small class="text-secondary">${e.createdBy ? e.createdBy.name : "User"}</small></td>
         <td class="text-end">
-          ${
-            isManagerOrAdmin && e.status === "Pending"
-              ? `
+          ${isManagerOrAdmin && e.status === "Pending"
+          ? `
             <button class="btn btn-outline-success btn-sm me-1 approve-exp-btn" data-id="${e._id}">Approve</button>
             <button class="btn btn-outline-danger btn-sm me-1 reject-exp-btn" data-id="${e._id}">Reject</button>
           `
-              : ""
-          }
+          : ""
+        }
           ${userRole === "Admin" || userRole === "Manager" ? `<button class="btn btn-outline-danger btn-sm delete-exp-btn" data-id="${e._id}"><i class="fa-solid fa-trash"></i></button>` : ""}
         </td>
       </tr>
@@ -1397,7 +1393,7 @@ function renderDocumentsTable(documents) {
       return `
       <tr>
         <td>
-          <a href="http://localhost:5000${d.filePath}" target="_blank" class="fw-semibold text-info text-decoration-none">
+          <a href="${API_CONFIG.SERVER_URL}${d.filePath}" target="_blank" class="fw-semibold text-info text-decoration-none">
             <i class="fa-solid fa-file-pdf me-2"></i>${d.fileName}
           </a>
         </td>
@@ -1577,8 +1573,8 @@ async function openVersionHistoryModal(documentId) {
     const historyHtml =
       history.length > 0
         ? history
-            .map(
-              (v) => `
+          .map(
+            (v) => `
           <div class="d-flex align-items-center justify-content-between py-3 border-bottom border-secondary border-opacity-25">
             <div>
               <div class="fw-bold text-light">
@@ -1589,25 +1585,23 @@ async function openVersionHistoryModal(documentId) {
               <small class="text-secondary">Uploaded: ${new Date(v.uploadedAt).toLocaleString()}</small>
             </div>
             <div class="d-flex align-items-center gap-2">
-              ${
-                v.versionNumber !== d.versionNumber
-                  ? `<button class="btn btn-outline-warning btn-sm revert-ver-btn" data-ver="${v.versionNumber}">
+              ${v.versionNumber !== d.versionNumber
+                ? `<button class="btn btn-outline-warning btn-sm revert-ver-btn" data-ver="${v.versionNumber}">
                       <i class="fa-solid fa-rotate-left me-1"></i>Revert to v${v.versionNumber}
                     </button>
-                    ${
-                      canManage
-                        ? `<button class="btn btn-outline-danger btn-sm delete-ver-btn" data-ver="${v.versionNumber}" title="Delete this version from history">
+                    ${canManage
+                  ? `<button class="btn btn-outline-danger btn-sm delete-ver-btn" data-ver="${v.versionNumber}" title="Delete this version from history">
                             <i class="fa-solid fa-trash"></i>
                            </button>`
-                        : ""
-                    }`
-                  : '<span class="text-secondary small">Active Version</span>'
+                  : ""
+                }`
+                : '<span class="text-secondary small">Active Version</span>'
               }
             </div>
           </div>
         `,
-            )
-            .join("")
+          )
+          .join("")
         : '<p class="text-muted">No version history available.</p>';
 
     const modalContent = document.createElement("div");
@@ -1871,9 +1865,9 @@ async function openRegisterPublicationModal() {
           const authorsInput = formData.get("authors");
           const authorsArray = authorsInput
             ? authorsInput
-                .split(",")
-                .map((a) => a.trim())
-                .filter(Boolean)
+              .split(",")
+              .map((a) => a.trim())
+              .filter(Boolean)
             : [];
 
           const payload = {
@@ -2081,10 +2075,10 @@ function renderUsersTable(users) {
       const isSelf = (u._id || u.id) === currentUserId;
       const joinedDate = u.createdAt
         ? new Date(u.createdAt).toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          })
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
         : "-";
 
       return `
@@ -2104,15 +2098,14 @@ function renderUsersTable(users) {
         <td>${getRoleBadge(u.role)}</td>
         <td><small class="text-secondary">${joinedDate}</small></td>
         <td class="text-end">
-          ${
-            isSelf
-              ? `<button class="btn btn-outline-secondary btn-sm" disabled title="Admins cannot alter their own role">
+          ${isSelf
+          ? `<button class="btn btn-outline-secondary btn-sm" disabled title="Admins cannot alter their own role">
                    <i class="fa-solid fa-lock me-1"></i> Current User
                  </button>`
-              : `<button class="btn btn-outline-info btn-sm change-user-role-btn" data-id="${u._id || u.id}">
+          : `<button class="btn btn-outline-info btn-sm change-user-role-btn" data-id="${u._id || u.id}">
                    <i class="fa-solid fa-user-gear me-1"></i> Change Role
                  </button>`
-          }
+        }
         </td>
       </tr>
     `;
@@ -2156,8 +2149,8 @@ function openEditUserRoleModal(user) {
       <label class="form-label text-light fw-semibold small uppercase">Select New System Role</label>
       <select id="select-new-role" class="form-select">
         ${roles
-          .map((r) => `<option value="${r}" ${user.role === r ? "selected" : ""}>${r}</option>`)
-          .join("")}
+      .map((r) => `<option value="${r}" ${user.role === r ? "selected" : ""}>${r}</option>`)
+      .join("")}
       </select>
     </div>
 
