@@ -483,7 +483,7 @@ async function openProjectDetailModal(projectId) {
         `;
           })
           .join("")
-        : '<p class="text-muted small">No reports defined for this project.</p>';
+        : '<p class="text-secondary small">No reports defined for this project.</p>';
 
     const modalContent = document.createElement("div");
     modalContent.innerHTML = `
@@ -868,15 +868,13 @@ function openAddMemberModal(projectId, callback) {
         <input type="text" id="member-search-input" class="form-control" autocomplete="off" placeholder="Start typing user name or email..." required />
         <span class="left"><i class="fa-solid fa-magnifying-glass"></i></span>
       </div>
-      <small class="text-muted">Live search matching users as you type. Click a user to select.</small>
+      <small class="text-secondary">Live search matching users as you type. Click a user to select.</small>
     </div>
     <div class="mb-3">
       <label class="fw-medium">Project Role</label>
       <select name="role" class="form-select">
         <option value="Researcher" selected>Researcher</option>
-        <option value="Lead">Lead</option>
-        <option value="Advisor">Advisor</option>
-        <option value="Contributor">Contributor</option>
+        <option value="Co-PI">Co-PI</option>
       </select>
     </div>
   `;
@@ -900,7 +898,7 @@ function openAddMemberModal(projectId, callback) {
           }
 
           try {
-            await projectService.addTeamMember(projectId, { userId, role });
+            await projectService.addTeamMember(projectId, { user: userId, userId, role });
             Toast.success("Team member assigned!");
             m.close();
             if (callback) callback();

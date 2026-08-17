@@ -12,7 +12,7 @@ const TeamMemberSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['Lead', 'Researcher', 'Advisor', 'Contributor'],
+      enum: ['Lead', 'Researcher', 'Advisor', 'Contributor', 'Co-PI'],
       default: 'Researcher',
     },
   },

@@ -195,9 +195,10 @@ const deleteProject = asyncHandler(async (req, res) => {
  * @access  Private (Admin, Manager, PI)
  */
 const addTeamMember = asyncHandler(async (req, res) => {
-  const { user, role } = req.body;
+  const userId = req.body.user || req.body.userId;
+  const role = req.body.role;
 
-  if (!user) {
+  if (!userId) {
     res.status(400);
     throw new Error('User ID is required');
   }
@@ -211,7 +212,7 @@ const addTeamMember = asyncHandler(async (req, res) => {
 
   // Check if member already exists
   const isExisting = project.teamMembers.some(
-    (member) => member.user.toString() === user
+    (member) => member.user.toString() === userId.toString()
   );
 
   if (isExisting) {
@@ -220,14 +221,14 @@ const addTeamMember = asyncHandler(async (req, res) => {
   }
 
   // Verify user exists in database
-  const userExists = await User.findById(user);
+  const userExists = await User.findById(userId);
   if (!userExists) {
     res.status(404);
     throw new Error('User not found in system');
   }
 
   project.teamMembers.push({
-    user,
+    user: userId,
     role: role || 'Researcher',
   });
 
