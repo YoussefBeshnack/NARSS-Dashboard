@@ -1,108 +1,89 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="../assets/favicon.png" />
-    <link rel="stylesheet" href="../css/bootstrap.min.css" />
-    <link rel="stylesheet" href="../css/all.min.css" />
-    <link rel="stylesheet" href="../css/main.css" />
-    <title>Narss Login</title>
-  </head>
-  <body>
-    <main class="w-100 bg-dark" style="height: 100vh">
-      <section class="h-100 d-flex justify-content-center align-items-center p-5">
-        <form
-          action="#"
-          id="login-form"
-          class="w-100 h-100 bg-white bg-opacity-90 rounded-2 d-flex flex-column align-content-center justify-content-between overflow-y-auto py-3 hide-scrollbar"
-          style="max-width: 580px; max-height: 628px">
-          <div class="p-4 text-black">
-            <!-- Image/Logo -->
-            <div class="m-auto" style="width: 96px; height: 96px">
-              <img src="../assets/favicon.png" alt="NARSS" class="w-100 h-100" />
-            </div>
 
-            <!-- Header -->
-            <div class="text-center my-3">
-              <p class="fs-3 fw-bold p-0 m-0">Welcome Back</p>
-              <p class="text-black text-opacity-75 p-0 m-0">Please enter your details to access your account.</p>
-            </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="../assets/favicon.png" />
+  <link rel="stylesheet" href="../css/bootstrap.min.css" />
+  <link rel="stylesheet" href="../css/all.min.css" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <title>Narss Login</title>
+</head>
 
-            <!-- Email -->
-            <div class="mb-3">
-              <label for="email" class="fw-medium">Email</label>
-              <div class="input">
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  autocomplete="email"
-                  required
-                  placeholder="name@company.com"
-                  class="form-control" />
-
-                <span class="left">
-                  <i class="fa-solid fa-envelope"></i>
-                </span>
-              </div>
-            </div>
-
-            <!-- Password -->
-            <div class="mb-3">
-              <label for="password" class="fw-medium">Password</label>
-              <div class="input">
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  autocomplete="current-password"
-                  required
-                  placeholder="Enter your password"
-                  class="form-control" />
-
-                <span class="left">
-                  <i class="fa-solid fa-key"></i>
-                </span>
-                <span class="right">
-                  <i class="fa-regular fa-eye"></i>
-                </span>
-              </div>
-            </div>
-
-            <!-- Remember/Forgot -->
-            <div class="d-flex justify-content-between mb-3">
-              <!-- Remember -->
-              <div></div>
-
-              <!-- Forgot -->
-              <a href="./forgot-password.html" class="text-secondary text-decoration-none fw-medium no-select"
-                >Forgot Password?</a
-              >
-            </div>
-
-            <!-- Login Button -->
-            <button class="btn btn-secondary w-50 d-block mx-auto rounded-3 mt-4" type="submit">
-              <span class="fw-medium">Login</span>
-              <i class="fa-solid fa-arrow-right"></i>
-            </button>
+<body>
+  <main class="w-100 bg-dark" style="height: 100vh">
+    <section class="h-100 d-flex justify-content-center align-items-center p-5">
+      <form action="#" id="login-form"
+        class="w-100 h-100 bg-white bg-opacity-90 rounded-2 d-flex flex-column align-content-center justify-content-between overflow-y-auto py-3 hide-scrollbar"
+        style="max-width: 580px; max-height: 628px">
+        <div class="p-4 text-black">
+          <!-- Image/Logo -->
+          <div class="m-auto" style="width: 96px; height: 96px">
+            <img src="../assets/favicon.png" alt="NARSS" class="w-100 h-100" />
           </div>
 
-          <!-- Don't have an account -->
-          <div class="text-body-tertiary text-center">
-            Don't have an account?
-            <a href="signup.html" class="text-secondary text-decoration-none fw-medium">Register</a>
+          <!-- Header -->
+          <div class="text-center my-3">
+            <p class="fs-3 fw-bold p-0 m-0">Welcome Back</p>
+            <p class="text-black text-opacity-75 p-0 m-0">Please enter your details to access your account.</p>
           </div>
-        </form>
-      </section>
-    </main>
-    <script src="../js/pages/login.js" type="module"></script>
-    <script src="../js/temp/devTool.js" type="module">
-      /*
-        Controls Menu:
-        Ctrl+Shift+S: setSession("temp") [Login]
-        Ctrl+Shift+L: clearSession() [Logout]
-      */
-    </script>
-  </body>
+
+          <!-- Email -->
+          <div class="mb-3">
+            <label for="email" class="fw-medium">Email</label>
+            <div class="input">
+              <input type="email" id="email" name="email" autocomplete="email" required placeholder="name@company.com"
+                class="form-control" />
+
+              <span class="left">
+                <i class="fa-solid fa-envelope"></i>
+              </span>
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div class="mb-3">
+            <label for="password" class="fw-medium">Password</label>
+            <div class="input">
+              <input type="password" id="password" name="password" autocomplete="current-password" required
+                placeholder="Enter your password" class="form-control" />
+
+              <span class="left">
+                <i class="fa-solid fa-key"></i>
+              </span>
+              <span class="right">
+                <i class="fa-regular fa-eye"></i>
+              </span>
+            </div>
+          </div>
+
+          <!-- Remember/Forgot -->
+          <div class="d-flex justify-content-between mb-3">
+            <!-- Remember -->
+            <div></div>
+
+            <!-- Forgot -->
+            <a href="./forgot-password.html" class="text-secondary text-decoration-none fw-medium no-select">Forgot
+              Password?</a>
+          </div>
+
+          <!-- Login Button -->
+          <button class="btn btn-secondary w-50 d-block mx-auto rounded-3 mt-4" type="submit">
+            <span class="fw-medium">Login</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+
+        <!-- Don't have an account -->
+        <div class="text-body-tertiary text-center">
+          Don't have an account?
+          <a href="signup.html" class="text-secondary text-decoration-none fw-medium">Register</a>
+        </div>
+      </form>
+    </section>
+  </main>
+  <script src="../js/pages/login.js" type="module"></script>
+</body>
+
 </html>
