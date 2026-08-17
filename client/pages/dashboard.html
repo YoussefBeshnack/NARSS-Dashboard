@@ -28,7 +28,7 @@
             <i class="fa-solid fa-chart-pie"></i> Dashboard Overview
           </a>
           <a href="#projects" class="nav-link" data-view="projects">
-            <i class="fa-solid fa-diagram-project"></i> Projects & Milestones
+            <i class="fa-solid fa-diagram-project"></i> Projects & Reports
           </a>
           <a href="#expenses" class="nav-link" data-view="expenses">
             <i class="fa-solid fa-wallet"></i> Finance & Expenses
@@ -130,11 +130,11 @@
               <div class="col-12 col-sm-6 col-xl-3">
                 <div class="glass-card p-3">
                   <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-light small uppercase fw-semibold">Milestone Rate</span>
-                    <i class="fa-solid fa-bullseye text-primary fs-4"></i>
+                    <span class="text-light small uppercase fw-semibold">Report Completion Rate</span>
+                    <i class="fa-solid fa-clipboard-check text-primary fs-4"></i>
                   </div>
-                  <h3 class="fw-bold text-light m-0" id="kpi-milestones-rate">0%</h3>
-                  <small class="text-secondary" id="kpi-milestones-count">0 Completed</small>
+                  <h3 class="fw-bold text-light m-0" id="kpi-reports-rate">0%</h3>
+                  <small class="text-secondary" id="kpi-reports-count">0 Completed</small>
                 </div>
               </div>
             </div>
@@ -151,9 +151,9 @@
               </div>
               <div class="col-12 col-lg-4">
                 <div class="glass-card p-4">
-                  <h6 class="fw-bold text-light mb-3">Milestone Progress Breakdown</h6>
+                  <h6 class="fw-bold text-light mb-3">Reports Progress Breakdown</h6>
                   <div style="height: 320px; position: relative">
-                    <canvas id="chart-milestones"></canvas>
+                    <canvas id="chart-reports"></canvas>
                   </div>
                 </div>
               </div>
@@ -437,7 +437,7 @@
                       <td><i class="fa-solid fa-check text-success fs-5"></i></td>
                     </tr>
                     <tr>
-                      <td>Create / Edit Projects & Milestones</td>
+                      <td>Create / Edit Projects & Reports</td>
                       <td><i class="fa-solid fa-check text-success fs-5"></i></td>
                       <td><i class="fa-solid fa-check text-success fs-5"></i></td>
                       <td><i class="fa-solid fa-xmark text-secondary"></i></td>

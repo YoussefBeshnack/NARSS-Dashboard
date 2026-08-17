@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
+const Document = require('../models/Document');
 const { validateProjectInput } = require('../utils/validators');
 const { asyncHandler } = require('../middlewares/errorMiddleware');
 
@@ -34,6 +35,8 @@ const getProjects = asyncHandler(async (req, res) => {
   const projects = await Project.find(query)
     .populate('pi', 'name email role')
     .populate('teamMembers.user', 'name email role')
+    .populate('reports.uploadedBy', 'name email role')
+    .populate('milestones.uploadedBy', 'name email role')
     .sort({ createdAt: -1 });
 
   res.status(200).json({
@@ -51,7 +54,9 @@ const getProjects = asyncHandler(async (req, res) => {
 const getProjectById = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.id)
     .populate('pi', 'name email role')
-    .populate('teamMembers.user', 'name email role');
+    .populate('teamMembers.user', 'name email role')
+    .populate('reports.uploadedBy', 'name email role')
+    .populate('milestones.uploadedBy', 'name email role');
 
   if (!project) {
     res.status(404);
@@ -101,12 +106,15 @@ const createProject = asyncHandler(async (req, res) => {
     fundingSource: req.body.fundingSource || 'Internal Funding',
     status: req.body.status || 'Planning',
     teamMembers: req.body.teamMembers || [],
-    milestones: req.body.milestones || [],
+    reports: req.body.reports || req.body.milestones || [],
+    milestones: req.body.reports || req.body.milestones || [],
   });
 
   const populatedProject = await Project.findById(project._id)
     .populate('pi', 'name email role')
-    .populate('teamMembers.user', 'name email role');
+    .populate('teamMembers.user', 'name email role')
+    .populate('reports.uploadedBy', 'name email role')
+    .populate('milestones.uploadedBy', 'name email role');
 
   res.status(201).json({
     success: true,
@@ -128,13 +136,20 @@ const updateProject = asyncHandler(async (req, res) => {
     throw new Error('Project not found');
   }
 
-  // Allow only Admin, Manager, or PI to update
+  // Check authorization: Admin, Manager, or PI of the project
   if (
-    !['Admin', 'Manager'].includes(req.user.role) &&
+    req.user.role !== 'Admin' &&
+    req.user.role !== 'Manager' &&
     project.pi.toString() !== req.user._id.toString()
   ) {
     res.status(403);
-    throw new Error('Not authorized to update project');
+    throw new Error('Not authorized to update this project');
+  }
+
+  const { error } = validateProjectInput(req.body);
+  if (error) {
+    res.status(400);
+    throw new Error(error.details[0].message);
   }
 
   project = await Project.findByIdAndUpdate(req.params.id, req.body, {
@@ -142,7 +157,9 @@ const updateProject = asyncHandler(async (req, res) => {
     runValidators: true,
   })
     .populate('pi', 'name email role')
-    .populate('teamMembers.user', 'name email role');
+    .populate('teamMembers.user', 'name email role')
+    .populate('reports.uploadedBy', 'name email role')
+    .populate('milestones.uploadedBy', 'name email role');
 
   res.status(200).json({
     success: true,
@@ -154,7 +171,7 @@ const updateProject = asyncHandler(async (req, res) => {
 /**
  * @desc    Delete project
  * @route   DELETE /api/projects/:id
- * @access  Private (Admin)
+ * @access  Private (Admin only)
  */
 const deleteProject = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.id);
@@ -178,9 +195,9 @@ const deleteProject = asyncHandler(async (req, res) => {
  * @access  Private (Admin, Manager, PI)
  */
 const addTeamMember = asyncHandler(async (req, res) => {
-  const { userId, role } = req.body;
+  const { user, role } = req.body;
 
-  if (!userId) {
+  if (!user) {
     res.status(400);
     throw new Error('User ID is required');
   }
@@ -192,38 +209,38 @@ const addTeamMember = asyncHandler(async (req, res) => {
     throw new Error('Project not found');
   }
 
-  // Check user existence
-  const userToAdd = await User.findById(userId);
-  if (!userToAdd) {
-    res.status(404);
-    throw new Error('User to add not found');
-  }
-
-  // Check if user is already a member
+  // Check if member already exists
   const isExisting = project.teamMembers.some(
-    (member) => member.user.toString() === userId
+    (member) => member.user.toString() === user
   );
 
   if (isExisting) {
     res.status(400);
-    throw new Error('User is already a team member of this project');
+    throw new Error('User is already a member of this project');
+  }
+
+  // Verify user exists in database
+  const userExists = await User.findById(user);
+  if (!userExists) {
+    res.status(404);
+    throw new Error('User not found in system');
   }
 
   project.teamMembers.push({
-    user: userId,
+    user,
     role: role || 'Researcher',
   });
 
   await project.save();
 
-  const updatedProject = await Project.findById(project._id)
+  const populatedProject = await Project.findById(project._id)
     .populate('pi', 'name email role')
     .populate('teamMembers.user', 'name email role');
 
   res.status(200).json({
     success: true,
     message: 'Team member added successfully',
-    teamMembers: updatedProject.teamMembers,
+    teamMembers: populatedProject.teamMembers,
   });
 });
 
@@ -254,17 +271,20 @@ const removeTeamMember = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Add milestone to project
- * @route   POST /api/projects/:id/milestones
- * @access  Private (Admin, Manager, PI)
+ * @desc    Add report / milestone to project
+ * @route   POST /api/projects/:id/reports, POST /api/projects/:id/milestones
+ * @access  Private (Admin, Manager, PI, Team Members)
  */
-const addMilestone = asyncHandler(async (req, res) => {
-  const { title, deadline, status } = req.body;
+const addReport = asyncHandler(async (req, res) => {
+  const { title, deadline, status, reportType } = req.body;
 
   if (!title || !deadline) {
     res.status(400);
-    throw new Error('Milestone title and deadline are required');
+    throw new Error('Report title and deadline date are required');
   }
+
+  const validTypes = ['Final', 'Semi-Final', 'Periodic'];
+  const chosenType = reportType && validTypes.includes(reportType) ? reportType : 'Periodic';
 
   const project = await Project.findById(req.params.id);
 
@@ -273,67 +293,83 @@ const addMilestone = asyncHandler(async (req, res) => {
     throw new Error('Project not found');
   }
 
-  const newMilestone = {
-    title,
-    deadline,
-    status: status || 'Pending',
-    completedAt: status === 'Completed' ? new Date() : null,
-  };
+  let filePath, fileName, fileSize, documentId;
 
-  project.milestones.push(newMilestone);
-  await project.save();
+  if (req.file) {
+    filePath = `/uploads/${req.file.filename}`;
+    fileName = req.file.originalname;
+    fileSize = req.file.size;
 
-  res.status(201).json({
-    success: true,
-    message: 'Milestone added successfully',
-    milestones: project.milestones,
-  });
-});
-
-/**
- * @desc    Update milestone status or details
- * @route   PUT /api/projects/:id/milestones/:milestoneId
- * @access  Private
- */
-const updateMilestone = asyncHandler(async (req, res) => {
-  const project = await Project.findById(req.params.id);
-
-  if (!project) {
-    res.status(404);
-    throw new Error('Project not found');
-  }
-
-  const milestone = project.milestones.id(req.params.milestoneId);
-
-  if (!milestone) {
-    res.status(404);
-    throw new Error('Milestone not found');
-  }
-
-  if (req.body.title) milestone.title = req.body.title;
-  if (req.body.deadline) milestone.deadline = req.body.deadline;
-  if (req.body.status) {
-    milestone.status = req.body.status;
-    if (req.body.status === 'Completed' && !milestone.completedAt) {
-      milestone.completedAt = new Date();
+    // Create a corresponding Document in the document repository
+    try {
+      const doc = await Document.create({
+        project: project._id,
+        fileName: req.file.originalname,
+        filePath,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+        category: 'Report',
+        versionNumber: 1,
+        versionHistory: [
+          {
+            versionNumber: 1,
+            filePath,
+            fileName: req.file.originalname,
+            fileSize: req.file.size,
+            uploadedBy: req.user._id,
+            uploadedAt: new Date(),
+          },
+        ],
+        uploadedBy: req.user._id,
+      });
+      documentId = doc._id;
+    } catch (docErr) {
+      console.error('Error auto-creating document for report:', docErr);
     }
   }
 
+  const newReport = {
+    title,
+    reportType: chosenType,
+    deadline,
+    status: status || 'Pending',
+    completedAt: status === 'Completed' ? new Date() : null,
+    filePath,
+    fileName,
+    fileSize,
+    documentId,
+    uploadedBy: req.user._id,
+  };
+
+  if (!project.reports) project.reports = [];
+  project.reports.push(newReport);
+
+  if (!project.milestones) project.milestones = [];
+  project.milestones.push(newReport);
+
   await project.save();
 
-  res.status(200).json({
+  const populatedProject = await Project.findById(project._id)
+    .populate('reports.uploadedBy', 'name email role')
+    .populate('milestones.uploadedBy', 'name email role');
+
+  const savedReport = populatedProject.reports[populatedProject.reports.length - 1];
+
+  res.status(201).json({
     success: true,
-    message: 'Milestone updated successfully',
-    milestone,
+    message: 'Report added successfully',
+    report: savedReport,
+    reports: populatedProject.reports,
+    milestones: populatedProject.milestones,
   });
 });
 
 /**
- * @desc    Delete milestone
- * @route   DELETE /api/projects/:id/milestones/:milestoneId
- * @access  Private (Admin, Manager, PI)
+ * @desc    Update report / milestone status or details
+ * @route   PUT /api/projects/:id/reports/:reportId, PUT /api/projects/:id/milestones/:milestoneId
+ * @access  Private
  */
-const deleteMilestone = asyncHandler(async (req, res) => {
+const updateReport = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.id);
 
   if (!project) {
@@ -341,15 +377,149 @@ const deleteMilestone = asyncHandler(async (req, res) => {
     throw new Error('Project not found');
   }
 
-  project.milestones = project.milestones.filter(
-    (m) => m._id.toString() !== req.params.milestoneId
-  );
+  const targetId = req.params.reportId || req.params.milestoneId;
+
+  let report = project.reports ? project.reports.id(targetId) : null;
+  if (!report && project.milestones) {
+    report = project.milestones.id(targetId);
+  }
+
+  if (!report) {
+    res.status(404);
+    throw new Error('Report not found');
+  }
+
+  if (req.body.title) report.title = req.body.title;
+  if (req.body.deadline) report.deadline = req.body.deadline;
+  if (req.body.reportType) report.reportType = req.body.reportType;
+  if (req.body.status) {
+    report.status = req.body.status;
+    if (req.body.status === 'Completed' && !report.completedAt) {
+      report.completedAt = new Date();
+    }
+  }
+
+  // Handle uploaded file replacement or attachment
+  if (req.file) {
+    const filePath = `/uploads/${req.file.filename}`;
+    report.filePath = filePath;
+    report.fileName = req.file.originalname;
+    report.fileSize = req.file.size;
+    report.uploadedBy = req.user._id;
+
+    try {
+      if (report.documentId) {
+        const existingDoc = await Document.findById(report.documentId);
+        if (existingDoc) {
+          const newVersionNumber = existingDoc.versionNumber + 1;
+          existingDoc.versionHistory.push({
+            versionNumber: newVersionNumber,
+            filePath,
+            fileName: req.file.originalname,
+            fileSize: req.file.size,
+            uploadedBy: req.user._id,
+            uploadedAt: new Date(),
+          });
+          existingDoc.versionNumber = newVersionNumber;
+          existingDoc.filePath = filePath;
+          existingDoc.fileName = req.file.originalname;
+          existingDoc.fileSize = req.file.size;
+          existingDoc.mimeType = req.file.mimetype;
+          await existingDoc.save();
+        }
+      } else {
+        const doc = await Document.create({
+          project: project._id,
+          fileName: req.file.originalname,
+          filePath,
+          fileSize: req.file.size,
+          mimeType: req.file.mimetype,
+          category: 'Report',
+          versionNumber: 1,
+          versionHistory: [
+            {
+              versionNumber: 1,
+              filePath,
+              fileName: req.file.originalname,
+              fileSize: req.file.size,
+              uploadedBy: req.user._id,
+              uploadedAt: new Date(),
+            },
+          ],
+          uploadedBy: req.user._id,
+        });
+        report.documentId = doc._id;
+      }
+    } catch (docErr) {
+      console.error('Error updating document record for report:', docErr);
+    }
+  }
+
+  // Sync to milestones array if present
+  const matchingMilestone = project.milestones ? project.milestones.id(targetId) : null;
+  if (matchingMilestone && matchingMilestone !== report) {
+    if (report.title) matchingMilestone.title = report.title;
+    if (report.deadline) matchingMilestone.deadline = report.deadline;
+    if (report.reportType) matchingMilestone.reportType = report.reportType;
+    if (report.status) matchingMilestone.status = report.status;
+    if (report.completedAt) matchingMilestone.completedAt = report.completedAt;
+    if (report.filePath) matchingMilestone.filePath = report.filePath;
+    if (report.fileName) matchingMilestone.fileName = report.fileName;
+    if (report.fileSize) matchingMilestone.fileSize = report.fileSize;
+    if (report.documentId) matchingMilestone.documentId = report.documentId;
+    if (report.uploadedBy) matchingMilestone.uploadedBy = report.uploadedBy;
+  }
+
+  await project.save();
+
+  const populatedProject = await Project.findById(project._id)
+    .populate('reports.uploadedBy', 'name email role')
+    .populate('milestones.uploadedBy', 'name email role');
+
+  const updatedReport = (populatedProject.reports && populatedProject.reports.id(targetId)) ||
+                        (populatedProject.milestones && populatedProject.milestones.id(targetId)) ||
+                        report;
+
+  res.status(200).json({
+    success: true,
+    message: 'Report updated successfully',
+    report: updatedReport,
+    milestone: updatedReport,
+  });
+});
+
+/**
+ * @desc    Delete report / milestone
+ * @route   DELETE /api/projects/:id/reports/:reportId, DELETE /api/projects/:id/milestones/:milestoneId
+ * @access  Private (Admin, Manager, PI)
+ */
+const deleteReport = asyncHandler(async (req, res) => {
+  const project = await Project.findById(req.params.id);
+
+  if (!project) {
+    res.status(404);
+    throw new Error('Project not found');
+  }
+
+  const targetId = req.params.reportId || req.params.milestoneId;
+
+  if (project.reports) {
+    project.reports = project.reports.filter(
+      (r) => r._id.toString() !== targetId
+    );
+  }
+
+  if (project.milestones) {
+    project.milestones = project.milestones.filter(
+      (m) => m._id.toString() !== targetId
+    );
+  }
 
   await project.save();
 
   res.status(200).json({
     success: true,
-    message: 'Milestone deleted successfully',
+    message: 'Report deleted successfully',
   });
 });
 
@@ -361,7 +531,10 @@ module.exports = {
   deleteProject,
   addTeamMember,
   removeTeamMember,
-  addMilestone,
-  updateMilestone,
-  deleteMilestone,
+  addReport,
+  updateReport,
+  deleteReport,
+  addMilestone: addReport,
+  updateMilestone: updateReport,
+  deleteMilestone: deleteReport,
 };

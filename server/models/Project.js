@@ -20,18 +20,24 @@ const TeamMemberSchema = new mongoose.Schema(
 );
 
 /**
- * Milestone Sub-schema
+ * Report / Milestone Sub-schema
  */
-const MilestoneSchema = new mongoose.Schema(
+const ReportSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, 'Please provide milestone title'],
+      required: [true, 'Please provide report title'],
       trim: true,
+    },
+    reportType: {
+      type: String,
+      enum: ['Final', 'Semi-Final', 'Periodic'],
+      default: 'Periodic',
+      required: [true, 'Please specify report type (Final, Semi-Final, Periodic)'],
     },
     deadline: {
       type: Date,
-      required: [true, 'Please provide milestone deadline'],
+      required: [true, 'Please provide report deadline date'],
     },
     status: {
       type: String,
@@ -40,6 +46,23 @@ const MilestoneSchema = new mongoose.Schema(
     },
     completedAt: {
       type: Date,
+    },
+    filePath: {
+      type: String,
+    },
+    fileName: {
+      type: String,
+    },
+    fileSize: {
+      type: Number,
+    },
+    documentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Document',
+    },
+    uploadedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   { timestamps: true }
@@ -88,7 +111,8 @@ const ProjectSchema = new mongoose.Schema(
       default: 'Planning',
     },
     teamMembers: [TeamMemberSchema],
-    milestones: [MilestoneSchema],
+    reports: [ReportSchema],
+    milestones: [ReportSchema],
   },
   {
     timestamps: true,

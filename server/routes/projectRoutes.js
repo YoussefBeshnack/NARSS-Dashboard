@@ -8,11 +8,15 @@ const {
   deleteProject,
   addTeamMember,
   removeTeamMember,
+  addReport,
+  updateReport,
+  deleteReport,
   addMilestone,
   updateMilestone,
   deleteMilestone,
 } = require('../controllers/projectController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
+const upload = require('../middlewares/uploadMiddleware');
 
 // All project routes require JWT authentication
 router.use(protect);
@@ -38,14 +42,24 @@ router
   .route('/:id/members/:userId')
   .delete(authorize('Admin', 'Manager'), removeTeamMember);
 
-// Milestones Management
+// Reports Management (with optional file upload)
+router
+  .route('/:id/reports')
+  .post(authorize('Admin', 'Manager', 'Researcher'), upload.single('file'), addReport);
+
+router
+  .route('/:id/reports/:reportId')
+  .put(authorize('Admin', 'Manager', 'Researcher'), upload.single('file'), updateReport)
+  .delete(authorize('Admin', 'Manager'), deleteReport);
+
+// Milestones Management (backward compatibility aliases)
 router
   .route('/:id/milestones')
-  .post(authorize('Admin', 'Manager', 'Researcher'), addMilestone);
+  .post(authorize('Admin', 'Manager', 'Researcher'), upload.single('file'), addMilestone);
 
 router
   .route('/:id/milestones/:milestoneId')
-  .put(updateMilestone)
+  .put(authorize('Admin', 'Manager', 'Researcher'), upload.single('file'), updateMilestone)
   .delete(authorize('Admin', 'Manager'), deleteMilestone);
 
 module.exports = router;

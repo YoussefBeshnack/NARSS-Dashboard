@@ -57,24 +57,39 @@ export class ProjectService {
   }
 
   /**
-   * Add milestone to project
+   * Add report to project (supports FormData with file upload or JSON payload)
+   */
+  async addReport(projectId, reportData) {
+    return apiClient.post(`/projects/${projectId}/reports`, reportData);
+  }
+
+  /**
+   * Update report
+   */
+  async updateReport(projectId, reportId, reportData) {
+    return apiClient.put(`/projects/${projectId}/reports/${reportId}`, reportData);
+  }
+
+  /**
+   * Delete report
+   */
+  async deleteReport(projectId, reportId) {
+    return apiClient.delete(`/projects/${projectId}/reports/${reportId}`);
+  }
+
+  /**
+   * Backward-compatibility aliases for milestones
    */
   async addMilestone(projectId, milestoneData) {
-    return apiClient.post(`/projects/${projectId}/milestones`, milestoneData);
+    return this.addReport(projectId, milestoneData);
   }
 
-  /**
-   * Update milestone
-   */
   async updateMilestone(projectId, milestoneId, milestoneData) {
-    return apiClient.put(`/projects/${projectId}/milestones/${milestoneId}`, milestoneData);
+    return this.updateReport(projectId, milestoneId, milestoneData);
   }
 
-  /**
-   * Delete milestone
-   */
   async deleteMilestone(projectId, milestoneId) {
-    return apiClient.delete(`/projects/${projectId}/milestones/${milestoneId}`);
+    return this.deleteReport(projectId, milestoneId);
   }
 }
 

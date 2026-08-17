@@ -15,7 +15,7 @@ import { setupUserAutocomplete } from "../components/user-autocomplete.js";
 let currentUser = null;
 let userRole = "Researcher";
 let chartBudgetSpentInstance = null;
-let chartMilestonesInstance = null;
+let chartReportsInstance = null;
 let projectsCache = [];
 let allUsersCache = [];
 
@@ -149,7 +149,7 @@ function switchView(viewName) {
   const pageTitle = document.getElementById("page-title");
   const titles = {
     dashboard: "Dashboard Overview & Analytics",
-    projects: "Project Management & Timelines",
+    projects: "Project Management & Reports",
     expenses: "Finance & Expense Logs",
     documents: "Document Repository & Versioning",
     publications: "Research Outputs & Publications",
@@ -204,14 +204,19 @@ async function loadDashboardView() {
     document.getElementById("kpi-outputs-breakdown").textContent =
       `${pubBreakdown.Publication || 0} Pubs, ${pubBreakdown.Patent || 0} Patents, ${pubBreakdown.Dataset || 0} Datasets`;
 
-    const msRate = data.milestones?.completionRate || 0;
-    document.getElementById("kpi-milestones-rate").textContent = `${msRate}%`;
-    document.getElementById("kpi-milestones-count").textContent =
-      `${data.milestones?.completed || 0} of ${data.milestones?.total || 0} completed`;
+    const repRate = data.reports?.completionRate ?? data.milestones?.completionRate ?? 0;
+    const repCompleted = data.reports?.completed ?? data.milestones?.completed ?? 0;
+    const repTotal = data.reports?.total ?? data.milestones?.total ?? 0;
+
+    const rateEl = document.getElementById("kpi-reports-rate") || document.getElementById("kpi-milestones-rate");
+    if (rateEl) rateEl.textContent = `${repRate}%`;
+
+    const countEl = document.getElementById("kpi-reports-count") || document.getElementById("kpi-milestones-count");
+    if (countEl) countEl.textContent = `${repCompleted} of ${repTotal} completed`;
 
     // Render Charts
     renderBudgetChart(data.chartProjectData || []);
-    renderMilestonesChart(data.milestones || {});
+    renderReportsChart(data.reports || data.milestones || {});
   } catch (err) {
     Toast.error("Failed to load analytics stats.");
   }
@@ -264,21 +269,21 @@ function renderBudgetChart(chartProjects) {
   });
 }
 
-function renderMilestonesChart(milestonesData) {
-  const ctx = document.getElementById("chart-milestones");
+function renderReportsChart(reportsData) {
+  const ctx = document.getElementById("chart-reports") || document.getElementById("chart-milestones");
   if (!ctx) return;
 
-  if (chartMilestonesInstance) {
-    chartMilestonesInstance.destroy();
+  if (chartReportsInstance) {
+    chartReportsInstance.destroy();
   }
 
-  chartMilestonesInstance = new Chart(ctx, {
+  chartReportsInstance = new Chart(ctx, {
     type: "doughnut",
     data: {
       labels: ["Completed", "In Progress", "Pending"],
       datasets: [
         {
-          data: [milestonesData.completed || 0, milestonesData.inProgress || 0, milestonesData.pending || 0],
+          data: [reportsData.completed || 0, reportsData.inProgress || 0, reportsData.pending || 0],
           backgroundColor: ["#10b981", "#3b82f6", "#f59e0b"],
           borderWidth: 0,
         },
@@ -353,8 +358,9 @@ function renderProjectsGrid(projects) {
       const statusClass = `badge-${p.status ? p.status.toLowerCase().replace(/\s+/g, "") : "planning"}`;
       const piName = p.pi ? p.pi.name : "Unassigned";
       const membersCount = p.teamMembers ? p.teamMembers.length : 0;
-      const milestonesCount = p.milestones ? p.milestones.length : 0;
-      const completedMs = p.milestones ? p.milestones.filter((m) => m.status === "Completed").length : 0;
+      const reportsList = p.reports && p.reports.length > 0 ? p.reports : (p.milestones || []);
+      const reportsCount = reportsList.length;
+      const completedReports = reportsList.filter((m) => m.status === "Completed").length;
 
       return `
       <div class="col-12 col-md-6 col-xl-4">
@@ -375,11 +381,11 @@ function renderProjectsGrid(projects) {
 
             <div class="mb-3">
               <div class="d-flex align-items-center justify-content-between small text-muted mb-1">
-                <span>Milestones Progress</span>
-                <span class="text-light">${completedMs} / ${milestonesCount}</span>
+                <span>Reports Progress</span>
+                <span class="text-light">${completedReports} / ${reportsCount}</span>
               </div>
               <div class="progress bg-dark" style="height: 6px;">
-                <div class="progress-bar bg-info" style="width: ${milestonesCount ? (completedMs / milestonesCount) * 100 : 0}%;"></div>
+                <div class="progress-bar bg-info" style="width: ${reportsCount ? (completedReports / reportsCount) * 100 : 0}%;"></div>
               </div>
             </div>
           </div>
@@ -387,7 +393,7 @@ function renderProjectsGrid(projects) {
           <div class="pt-3 border-top border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
             <small class="text-light"><i class="fa-solid fa-users me-1"></i>${membersCount} Members</small>
             <button class="btn btn-outline-info btn-sm rounded-2 view-project-detail-btn" data-id="${p._id}">
-              Details & Milestones <i class="fa-solid fa-arrow-right ms-1"></i>
+              Details & Reports <i class="fa-solid fa-arrow-right ms-1"></i>
             </button>
           </div>
         </div>
@@ -430,27 +436,54 @@ async function openProjectDetailModal(projectId) {
             .join("")
         : '<p class="text-muted small">No team members assigned.</p>';
 
-    const milestonesHtml =
-      p.milestones && p.milestones.length > 0
-        ? p.milestones
-            .map(
-              (m) => `
-          <div class="d-flex align-items-center justify-content-between py-2 border-bottom border-secondary border-opacity-25">
+    const reportsList = p.reports && p.reports.length > 0 ? p.reports : (p.milestones || []);
+
+    const reportsHtml =
+      reportsList.length > 0
+        ? reportsList
+            .map((r) => {
+              const typeBadge =
+                r.reportType === "Final"
+                  ? '<span class="badge bg-danger"><i class="fa-solid fa-flag-checkered me-1"></i>Final</span>'
+                  : r.reportType === "Semi-Final"
+                    ? '<span class="badge bg-warning text-dark"><i class="fa-solid fa-hourglass-half me-1"></i>Semi-Final</span>'
+                    : '<span class="badge bg-info text-dark"><i class="fa-solid fa-clock-rotate-left me-1"></i>Periodic</span>';
+
+              const uploaderName = r.uploadedBy ? (r.uploadedBy.name || r.uploadedBy.email) : null;
+
+              return `
+          <div class="d-flex flex-wrap align-items-center justify-content-between py-2 border-bottom border-secondary border-opacity-25 gap-2">
             <div>
-              <div class="fw-semibold text-light ${m.status === "Completed" ? "text-decoration-line-through text-muted" : ""}">${m.title}</div>
-              <small class="text-secondary">Due: ${new Date(m.deadline).toLocaleDateString()} | Status: <span class="badge ${m.status === "Completed" ? "bg-success" : "bg-warning text-dark"}">${m.status}</span></small>
+              <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <span class="fw-semibold text-light ${r.status === "Completed" ? "text-decoration-line-through text-muted" : ""}">${r.title}</span>
+                ${typeBadge}
+                ${
+                  r.filePath
+                    ? `<a href="${r.filePath}" target="_blank" download class="btn btn-outline-info btn-sm py-0 px-2 small" title="Download Attached Deliverable (${r.fileName || "File"})">
+                         <i class="fa-solid fa-paperclip me-1"></i>${r.fileName || "Document"}
+                       </a>`
+                    : '<span class="badge bg-secondary bg-opacity-25 text-secondary small"><i class="fa-solid fa-paperclip me-1"></i>No File</span>'
+                }
+              </div>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <small class="text-secondary">Due: ${new Date(r.deadline).toLocaleDateString()}</small>
+                <small class="text-secondary">|</small>
+                <small class="text-secondary">Status: <span class="badge ${r.status === "Completed" ? "bg-success" : "bg-warning text-dark"}">${r.status}</span></small>
+                ${uploaderName ? `<small class="text-secondary">|</small><small class="text-secondary"><i class="fa-solid fa-user-pen me-1"></i>Uploaded by: <strong class="text-light">${uploaderName}</strong></small>` : ""}
+              </div>
             </div>
             <div class="d-flex align-items-center gap-2">
-              <button class="btn btn-sm ${m.status === "Completed" ? "btn-outline-secondary" : "btn-success"} toggle-ms-btn" data-ms-id="${m._id}" data-status="${m.status}">
-                ${m.status === "Completed" ? "Undo" : "Complete"}
+              <button class="btn btn-sm ${r.status === "Completed" ? "btn-outline-secondary" : "btn-success"} toggle-report-btn" data-report-id="${r._id}" data-status="${r.status}">
+                ${r.status === "Completed" ? "Undo" : "Complete"}
               </button>
-              ${isOwnerOrAdmin ? `<button class="btn btn-outline-danger btn-sm delete-ms-btn" data-ms-id="${m._id}"><i class="fa-solid fa-trash"></i></button>` : ""}
+              ${isOwnerOrAdmin ? `<button class="btn btn-outline-info btn-sm edit-report-btn" data-report-id="${r._id}" title="Edit Report"><i class="fa-solid fa-pen-to-square"></i></button>` : ""}
+              ${isOwnerOrAdmin ? `<button class="btn btn-outline-danger btn-sm delete-report-btn" data-report-id="${r._id}" title="Delete Report"><i class="fa-solid fa-trash"></i></button>` : ""}
             </div>
           </div>
-        `,
-            )
+        `;
+            })
             .join("")
-        : '<p class="text-muted small">No milestones defined.</p>';
+        : '<p class="text-muted small">No reports defined for this project.</p>';
 
     const modalContent = document.createElement("div");
     modalContent.innerHTML = `
@@ -475,13 +508,13 @@ async function openProjectDetailModal(projectId) {
         ${membersHtml}
       </div>
 
-      <!-- Milestones Section -->
+      <!-- Reports Section -->
       <div>
         <div class="d-flex align-items-center justify-content-between mb-2">
-          <h6 class="fw-bold text-light m-0"><i class="fa-solid fa-list-check text-warning me-2"></i>Project Milestones</h6>
-          ${isOwnerOrAdmin ? `<button class="btn btn-sm btn-outline-warning" id="add-milestone-btn"><i class="fa-solid fa-plus me-1"></i> Add Milestone</button>` : ""}
+          <h6 class="fw-bold text-light m-0"><i class="fa-solid fa-file-lines text-warning me-2"></i>Project Reports</h6>
+          ${isOwnerOrAdmin ? `<button class="btn btn-sm btn-outline-warning" id="add-report-btn"><i class="fa-solid fa-plus me-1"></i> Add Report</button>` : ""}
         </div>
-        ${milestonesHtml}
+        ${reportsHtml}
       </div>
     `;
 
@@ -525,7 +558,6 @@ async function openProjectDetailModal(projectId) {
       actions,
     });
 
-
     // Attach internal event handlers inside detail modal
     const addMemberBtn = modalContent.querySelector("#add-member-btn");
     if (addMemberBtn) {
@@ -537,47 +569,64 @@ async function openProjectDetailModal(projectId) {
       });
     }
 
-    const addMsBtn = modalContent.querySelector("#add-milestone-btn");
-    if (addMsBtn) {
-      addMsBtn.addEventListener("click", () => {
-        openAddMilestoneModal(p._id, () => {
+    const addReportBtn = modalContent.querySelector("#add-report-btn");
+    if (addReportBtn) {
+      addReportBtn.addEventListener("click", () => {
+        openAddReportModal(p._id, () => {
           modal.close();
           openProjectDetailModal(p._id);
         });
       });
     }
 
-    // Toggle Milestone handlers
-    modalContent.querySelectorAll(".toggle-ms-btn").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const msId = btn.getAttribute("data-ms-id");
-        const currentStatus = btn.getAttribute("data-status");
-        const newStatus = currentStatus === "Completed" ? "In Progress" : "Completed";
-
-        try {
-          await projectService.updateMilestone(p._id, msId, { status: newStatus });
-          Toast.success(`Milestone status updated to ${newStatus}`);
-          modal.close();
-          openProjectDetailModal(p._id);
-          loadProjectsView();
-        } catch (err) {
-          Toast.error(err.message || "Failed to update milestone.");
+    // Edit Report handlers
+    modalContent.querySelectorAll(".edit-report-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const reportId = btn.getAttribute("data-report-id");
+        const reportObj = reportsList.find((r) => r._id === reportId);
+        if (reportObj) {
+          openEditReportModal(p._id, reportObj, () => {
+            modal.close();
+            openProjectDetailModal(p._id);
+            loadProjectsView();
+          });
         }
       });
     });
 
-    // Delete Milestone handlers
-    modalContent.querySelectorAll(".delete-ms-btn").forEach((btn) => {
+    // Toggle Report handlers
+    modalContent.querySelectorAll(".toggle-report-btn").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const msId = btn.getAttribute("data-ms-id");
+        const reportId = btn.getAttribute("data-report-id");
+        const currentStatus = btn.getAttribute("data-status");
+        const newStatus = currentStatus === "Completed" ? "In Progress" : "Completed";
+
         try {
-          await projectService.deleteMilestone(p._id, msId);
-          Toast.success("Milestone deleted.");
+          const updateFn = (projectService.updateReport || projectService.updateMilestone).bind(projectService);
+          await updateFn(p._id, reportId, { status: newStatus });
+          Toast.success(`Report status updated to ${newStatus}`);
           modal.close();
           openProjectDetailModal(p._id);
           loadProjectsView();
         } catch (err) {
-          Toast.error(err.message || "Failed to delete milestone.");
+          Toast.error(err.message || "Failed to update report.");
+        }
+      });
+    });
+
+    // Delete Report handlers
+    modalContent.querySelectorAll(".delete-report-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const reportId = btn.getAttribute("data-report-id");
+        try {
+          const deleteFn = (projectService.deleteReport || projectService.deleteMilestone).bind(projectService);
+          await deleteFn(p._id, reportId);
+          Toast.success("Report deleted.");
+          modal.close();
+          openProjectDetailModal(p._id);
+          loadProjectsView();
+        } catch (err) {
+          Toast.error(err.message || "Failed to delete report.");
         }
       });
     });
@@ -871,52 +920,159 @@ function openAddMemberModal(projectId, callback) {
   });
 }
 
-function openAddMilestoneModal(projectId, callback) {
+function openAddReportModal(projectId, callback) {
   const formHtml = `
-    <form id="add-milestone-form">
+    <form id="add-report-form">
       <div class="mb-3">
-        <label class="fw-medium">Milestone Title</label>
-        <input type="text" name="title" class="form-control" required placeholder="Phase 1 Dataset Collection" />
+        <label class="fw-medium text-light">Report Title <span class="text-danger">*</span></label>
+        <input type="text" name="title" class="form-control" required placeholder="e.g. Q1 Milestone Deliverables & Progress Report" />
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="fw-medium text-light">Report Type <span class="text-danger">*</span></label>
+          <select name="reportType" class="form-select" required>
+            <option value="Periodic" selected>Periodic</option>
+            <option value="Semi-Final">Semi-Final</option>
+            <option value="Final">Final</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="fw-medium text-light">Deadline Date <span class="text-danger">*</span></label>
+          <input type="date" name="deadline" class="form-control" required />
+        </div>
       </div>
       <div class="mb-3">
-        <label class="fw-medium">Deadline Date</label>
-        <input type="date" name="deadline" class="form-control" required />
-      </div>
-      <div class="mb-3">
-        <label class="fw-medium">Status</label>
+        <label class="fw-medium text-light">Status</label>
         <select name="status" class="form-select">
           <option value="Pending" selected>Pending</option>
           <option value="In Progress">In Progress</option>
           <option value="Completed">Completed</option>
         </select>
       </div>
+      <div class="mb-3">
+        <label class="fw-medium text-light">Attached Report Document (Optional)</label>
+        <input type="file" name="file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.png,.jpg,.jpeg" />
+        <small class="text-secondary">Attach report deliverables directly within this menu (PDF, DOCX, XLSX, etc. Max 10MB).</small>
+      </div>
     </form>
   `;
 
   new Modal({
-    title: "Add Project Milestone",
+    title: "Add Project Report",
     content: formHtml,
     actions: [
       { text: "Cancel", class: "btn-outline-secondary", onClick: (_, m) => m.close() },
       {
-        text: "Add Milestone",
-        class: "btn-warning text-dark",
+        text: "Add Report",
+        class: "btn-secondary",
         onClick: async (_, m) => {
-          const form = document.getElementById("add-milestone-form");
+          const form = document.getElementById("add-report-form");
           const formData = new FormData(form);
-          const payload = {
-            title: formData.get("title"),
-            deadline: formData.get("deadline"),
-            status: formData.get("status"),
-          };
+
+          if (!formData.get("title") || !formData.get("deadline") || !formData.get("reportType")) {
+            Toast.error("Please fill in all required fields.");
+            return;
+          }
 
           try {
-            await projectService.addMilestone(projectId, payload);
-            Toast.success("Milestone added!");
+            const addFn = (projectService.addReport || projectService.addMilestone).bind(projectService);
+            await addFn(projectId, formData);
+            Toast.success("Report added successfully!");
             m.close();
             if (callback) callback();
           } catch (err) {
-            Toast.error(err.message || "Failed to add milestone.");
+            Toast.error(err.message || "Failed to add report.");
+          }
+        },
+      },
+    ],
+  });
+}
+
+function openEditReportModal(projectId, report, callback) {
+  const deadlineStr = report.deadline ? new Date(report.deadline).toISOString().split("T")[0] : "";
+  const uploaderName = report.uploadedBy ? (report.uploadedBy.name || report.uploadedBy.email) : null;
+
+  const formHtml = `
+    <form id="edit-report-form">
+      ${
+        uploaderName
+          ? `
+        <div class="mb-3 p-2 rounded bg-dark border border-secondary border-opacity-25 small text-secondary">
+          <i class="fa-solid fa-user-pen text-info me-1"></i> Originally uploaded by: <strong class="text-light">${uploaderName}</strong>
+        </div>
+      `
+          : ""
+      }
+      <div class="mb-3">
+        <label class="fw-medium text-light">Report Title <span class="text-danger">*</span></label>
+        <input type="text" name="title" class="form-control" required value="${report.title || ""}" />
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="fw-medium text-light">Report Type <span class="text-danger">*</span></label>
+          <select name="reportType" class="form-select" required>
+            <option value="Periodic" ${report.reportType === "Periodic" ? "selected" : ""}>Periodic</option>
+            <option value="Semi-Final" ${report.reportType === "Semi-Final" ? "selected" : ""}>Semi-Final</option>
+            <option value="Final" ${report.reportType === "Final" ? "selected" : ""}>Final</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="fw-medium text-light">Deadline Date <span class="text-danger">*</span></label>
+          <input type="date" name="deadline" class="form-control" required value="${deadlineStr}" />
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="fw-medium text-light">Status</label>
+        <select name="status" class="form-select">
+          <option value="Pending" ${report.status === "Pending" ? "selected" : ""}>Pending</option>
+          <option value="In Progress" ${report.status === "In Progress" ? "selected" : ""}>In Progress</option>
+          <option value="Completed" ${report.status === "Completed" ? "selected" : ""}>Completed</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="fw-medium text-light">Attached Report Document</label>
+        ${
+          report.filePath
+            ? `
+          <div class="mb-2 p-2 bg-dark rounded border border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+            <span class="small text-light text-truncate"><i class="fa-solid fa-file me-2 text-info"></i>${report.fileName || "Attached Document"}</span>
+            <a href="${report.filePath}" target="_blank" download class="btn btn-outline-info btn-sm py-0 px-2">Download</a>
+          </div>
+        `
+            : ""
+        }
+        <input type="file" name="file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.png,.jpg,.jpeg" />
+        <small class="text-secondary">${report.filePath ? "Upload a new file to replace the current attachment." : "Attach report deliverables directly (PDF, DOCX, XLSX, etc. Max 10MB)."}</small>
+      </div>
+    </form>
+  `;
+
+  new Modal({
+    title: "Edit Project Report",
+    content: formHtml,
+    actions: [
+      { text: "Cancel", class: "btn-outline-secondary", onClick: (_, m) => m.close() },
+      {
+        text: "Save Changes",
+        class: "btn-secondary",
+        onClick: async (_, m) => {
+          const form = document.getElementById("edit-report-form");
+          const formData = new FormData(form);
+
+          if (!formData.get("title") || !formData.get("deadline") || !formData.get("reportType")) {
+            Toast.error("Please fill in all required fields.");
+            return;
+          }
+
+          try {
+            const updateFn = (projectService.updateReport || projectService.updateMilestone).bind(projectService);
+            await updateFn(projectId, report._id, formData);
+            Toast.success("Report updated successfully!");
+            m.close();
+            if (callback) callback();
+          } catch (err) {
+            Toast.error(err.message || "Failed to update report.");
           }
         },
       },
@@ -1927,7 +2083,7 @@ function openEditUserRoleModal(user) {
   const roles = ["Admin", "Manager", "Researcher", "External Partner"];
   const roleDescriptions = {
     Admin: "Full administrative control: manage all projects, delete records, approve expenses, and manage system user roles.",
-    Manager: "Project & Finance Lead: create/edit projects, milestones, approve/reject expenses, and upload documents.",
+    Manager: "Project & Finance Lead: create/edit projects, reports, approve/reject expenses, and upload documents.",
     Researcher: "Research Contributor: log expenses, upload documents, register research publications/outputs.",
     "External Partner": "View-only access: view assigned projects, documents, and research outputs.",
   };
